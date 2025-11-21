@@ -1,3 +1,6 @@
+# Custom repository folder
+.geg/
+
 # Prerequisites
 *.d
 
@@ -22,7 +25,7 @@
 *.la
 *.lo
 
-# Shared objects (inc. Windows DLLs)
+# Shared objects (Windows DLLs, Linux .so, Mac .dylib)
 *.dll
 *.so
 *.so.*
@@ -51,5 +54,5 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-# debug information files
+# Debug information files
 *.dwo
