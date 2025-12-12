@@ -3,10 +3,20 @@
 #include <stdlib.h>
 #include <string.h>
 
+uint32_t K[4] = {0x5A827999, 0x6ED9EBA1, 0x8F1BBCDC, 0xCA62C1D6};
+
 #define ROTL(x, n) (((x) << (n)) | ((x) >> (32 - (n))))
 #define BLOCK_SIZE 64
 
-uint32_t K[4] = {0x5A827999, 0x6ED9EBA1, 0x8F1BBCDC, 0xCA62C1D6};
+typedef struct
+{
+
+    uint32_t H[5];
+    uint64_t total_bits;
+    uint8_t buffer[64];
+    size_t buffer_len;
+
+} Sha1Context;
 
 void serialize_hash(const uint32_t *H, uint8_t *digest)
 {
@@ -36,26 +46,6 @@ void serialize_hash(const uint32_t *H, uint8_t *digest)
     digest[19] = (uint8_t)(H[4]);
 }
 
-uint32_t *expand_message_block(const uint8_t *block_512bits, uint32_t W[80])
-{
-
-    for (int t = 0; t < 16; t++)
-    {
-        W[t] = (block_512bits[t * 4] << 24) |
-               (block_512bits[t * 4 + 1] << 16) |
-               (block_512bits[t * 4 + 2] << 8) |
-               (block_512bits[t * 4 + 3]);
-    }
-
-    for (int t = 16; t < 80; t++)
-    {
-        uint32_t temp = W[t - 3] ^ W[t - 8] ^ W[t - 14] ^ W[t - 16];
-        W[t] = ROTL(temp, 1);
-    }
-
-    return W;
-}
-
 uint32_t helper_function(uint32_t B, uint32_t C, uint32_t D, int n)
 {
 
@@ -77,9 +67,28 @@ uint32_t helper_function(uint32_t B, uint32_t C, uint32_t D, int n)
     }
 }
 
-void roundcompression(const uint8_t *block_512bits, uint8_t *result, uint32_t *H)
+uint32_t *expand_message_block(const uint8_t *block_512bits, uint32_t W[80])
 {
 
+    for (int t = 0; t < 16; t++)
+    {
+        W[t] = (block_512bits[t * 4] << 24) |
+               (block_512bits[t * 4 + 1] << 16) |
+               (block_512bits[t * 4 + 2] << 8) |
+               (block_512bits[t * 4 + 3]);
+    }
+
+    for (int t = 16; t < 80; t++)
+    {
+        uint32_t temp = W[t - 3] ^ W[t - 8] ^ W[t - 14] ^ W[t - 16];
+        W[t] = ROTL(temp, 1);
+    }
+
+    return W;
+}
+
+void roundcompression(const uint8_t *block_512bits, uint32_t *H)
+{
     uint32_t A = H[0];
     uint32_t B = H[1];
     uint32_t C = H[2];
@@ -91,19 +100,19 @@ void roundcompression(const uint8_t *block_512bits, uint8_t *result, uint32_t *H
 
     for (int i = 0; i < 80; i++)
     {
-
         int t;
 
-        if (i >= 0 && i < 20)
+        if (i < 20)
             t = 0;
-        else if (i >= 20 && i < 40)
+        else if (i < 40)
             t = 1;
-        else if (i >= 40 && i < 60)
+        else if (i < 60)
             t = 2;
         else
             t = 3;
 
         uint32_t temp = ROTL(A, 5) + helper_function(B, C, D, t) + E + K[t] + W[i];
+
         E = D;
         D = C;
         C = ROTL(B, 30);
@@ -116,72 +125,85 @@ void roundcompression(const uint8_t *block_512bits, uint8_t *result, uint32_t *H
     H[2] = H[2] + C;
     H[3] = H[3] + D;
     H[4] = H[4] + E;
-
-    serialize_hash(H, result);
 }
 
-
-int pad_blocks(const char *input_string, uint8_t **padded_message)
+void sha1_init(Sha1Context *ctx)
 {
 
-    uint64_t original_byte_len = strlen(input_string);
-    uint64_t original_bit_len = original_byte_len * 8;
+    ctx->H[0] = 0x67452301;
+    ctx->H[1] = 0xEFCDAB89;
+    ctx->H[2] = 0x98BADCFE;
+    ctx->H[3] = 0x10325476;
+    ctx->H[4] = 0xC3D2E1F0;
 
-    int total_len = original_byte_len + 1 + 8;
-    int num_blocks = (total_len + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
+    ctx->total_bits = 0;
+    ctx->buffer_len = 0;
+}
 
-    printf("Original String: \"%s\"\n", input_string);
-    printf("Length: %llu bytes (%llu bits)\n", original_byte_len, original_bit_len);
-    printf("Padding into %d block(s)...\n\n", num_blocks);
+void sha1_update(Sha1Context *ctx, const uint8_t *data, size_t len)
+{
 
-    *padded_message = calloc(num_blocks * BLOCK_SIZE, 1);
+    for (int i = 0; i < len; i++)
+    {
 
-    memcpy(*padded_message, input_string, original_byte_len);
+        ctx->buffer[ctx->buffer_len++] = data[i];
+        ctx->total_bits += 8;
 
-    (*padded_message)[original_byte_len] = 0x80;
+        if (ctx->buffer_len == 64)
+        {
 
-    int end_pos = (num_blocks * BLOCK_SIZE) - 8;
+            roundcompression(ctx->buffer, ctx->H);
+            ctx->buffer_len = 0;
+        }
+    }
+}
+
+void sha1_final(Sha1Context *ctx, uint8_t *digest)
+{
+
+    ctx->buffer[ctx->buffer_len++] = 0x80;
+
+    if (ctx->buffer_len > 56)
+    {
+
+        while (ctx->buffer_len < 64)
+        {
+            ctx->buffer[ctx->buffer_len++] = 0;
+        }
+
+        roundcompression(ctx->buffer, ctx->H);
+        ctx->buffer_len = 0;
+    }
+
+    while (ctx->buffer_len < 56)
+    {
+        ctx->buffer[ctx->buffer_len++] = 0;
+    }
 
     for (int i = 0; i < 8; i++)
     {
-        (*padded_message)[end_pos + i] = (original_bit_len >> (56 - (i * 8))) & 0xFF;
+
+        ctx->buffer[56 + i] = (ctx->total_bits >> (56 - (i * 8))) & 0xFF;
     }
 
-    return num_blocks;
+    roundcompression(ctx->buffer, ctx->H);
+
+    serialize_hash(ctx->H, digest);
 }
 
-void sha1(const char *input_string, size_t string_len, uint8_t *result)
+void print_hash(const uint8_t *hash)
 {
-    uint32_t H[5] = {0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0};
-
-    uint8_t *padded_message;
-    int num_blocks;
-
-    num_blocks = pad_blocks(input_string, &padded_message);
-
-    for (int i = 0; i < num_blocks; i++)
-    {
-        roundcompression(&padded_message[i * BLOCK_SIZE], result, H);
-    }
-
-    free(padded_message);
-}
-
-
-void print_hash(const uint8_t *hash){
 
     printf("Hash: ");
 
-    for(int i = 0;i<20;i++){
+    for (int i = 0; i < 20; i++)
+    {
 
-        printf("%02x",hash[i]);
-
+        printf("%02x", hash[i]);
     }
 
     printf("\n");
-
 }
-
 
 int main()
 {
@@ -195,25 +217,23 @@ int main()
         return 1;
     }
 
-    fseek(fp, 0, SEEK_END);
-    long fsize = ftell(fp);
-    rewind(fp);
+    Sha1Context ctx;
 
-    char *input_buffer = malloc(fsize);
-    if (input_buffer == NULL)
+    sha1_init(&ctx);
+
+    uint8_t file_buffer[4096];
+    size_t bytes_read;
+
+    while ((bytes_read = fread(file_buffer, 1, sizeof(file_buffer), fp)) != 0)
     {
-        perror("Failed to allocate memory");
-        fclose(fp);
-        return 1;
+        sha1_update(&ctx, file_buffer, bytes_read);
     }
 
-    size_t bytes_read = fread(input_buffer, 1, fsize, fp);
-    fclose(fp);
+    sha1_final(&ctx, result);
 
-    sha1(input_buffer, bytes_read, result);
+    fclose(fp);
 
     print_hash(result);
 
-    free(input_buffer);
     return 0;
 }
