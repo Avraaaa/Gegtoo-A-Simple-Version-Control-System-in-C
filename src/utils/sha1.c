@@ -1,22 +1,7 @@
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "sha1.h"
 
 uint32_t K[4] = {0x5A827999, 0x6ED9EBA1, 0x8F1BBCDC, 0xCA62C1D6};
 
-#define ROTL(x, n) (((x) << (n)) | ((x) >> (32 - (n))))
-#define BLOCK_SIZE 64
-
-typedef struct
-{
-
-    uint32_t H[5];
-    uint64_t total_bits;
-    uint8_t buffer[64];
-    size_t buffer_len;
-
-} Sha1Context;
 
 void serialize_hash(const uint32_t *H, uint8_t *digest)
 {
@@ -46,6 +31,7 @@ void serialize_hash(const uint32_t *H, uint8_t *digest)
     digest[19] = (uint8_t)(H[4]);
 }
 
+
 uint32_t helper_function(uint32_t B, uint32_t C, uint32_t D, int n)
 {
 
@@ -67,6 +53,7 @@ uint32_t helper_function(uint32_t B, uint32_t C, uint32_t D, int n)
     }
 }
 
+
 uint32_t *expand_message_block(const uint8_t *block_512bits, uint32_t W[80])
 {
 
@@ -86,6 +73,7 @@ uint32_t *expand_message_block(const uint8_t *block_512bits, uint32_t W[80])
 
     return W;
 }
+
 
 void roundcompression(const uint8_t *block_512bits, uint32_t *H)
 {
@@ -127,8 +115,8 @@ void roundcompression(const uint8_t *block_512bits, uint32_t *H)
     H[4] = H[4] + E;
 }
 
-void sha1_init(Sha1Context *ctx)
-{
+
+void sha1_init(Sha1Context *ctx){
 
     ctx->H[0] = 0x67452301;
     ctx->H[1] = 0xEFCDAB89;
@@ -140,100 +128,68 @@ void sha1_init(Sha1Context *ctx)
     ctx->buffer_len = 0;
 }
 
-void sha1_update(Sha1Context *ctx, const uint8_t *data, size_t len)
-{
 
-    for (int i = 0; i < len; i++)
-    {
+void sha1_update(Sha1Context *ctx, const uint8_t *data, size_t len){
+
+    for(int i = 0;i<len;i++){
 
         ctx->buffer[ctx->buffer_len++] = data[i];
         ctx->total_bits += 8;
 
-        if (ctx->buffer_len == 64)
-        {
+        if(ctx->buffer_len == 64){
 
             roundcompression(ctx->buffer, ctx->H);
             ctx->buffer_len = 0;
+
         }
+
     }
+
 }
 
-void sha1_final(Sha1Context *ctx, uint8_t *digest)
-{
+
+void sha1_final(Sha1Context *ctx, uint8_t *digest){
 
     ctx->buffer[ctx->buffer_len++] = 0x80;
 
-    if (ctx->buffer_len > 56)
-    {
+    if(ctx->buffer_len > 56){
 
-        while (ctx->buffer_len < 64)
-        {
+        while(ctx->buffer_len<64){
             ctx->buffer[ctx->buffer_len++] = 0;
         }
 
-        roundcompression(ctx->buffer, ctx->H);
+        roundcompression(ctx->buffer,ctx->H);
         ctx->buffer_len = 0;
+
     }
 
-    while (ctx->buffer_len < 56)
-    {
+    while(ctx->buffer_len <56){
         ctx->buffer[ctx->buffer_len++] = 0;
     }
 
-    for (int i = 0; i < 8; i++)
-    {
+    for(int i = 0;i<8;i++){
 
-        ctx->buffer[56 + i] = (ctx->total_bits >> (56 - (i * 8))) & 0xFF;
+        ctx->buffer[56+i] = (ctx->total_bits>>(56-(i*8))) & 0xFF;
+
     }
 
-    roundcompression(ctx->buffer, ctx->H);
+    roundcompression(ctx->buffer,ctx->H);
 
-    serialize_hash(ctx->H, digest);
+    serialize_hash(ctx->H,digest);
+
 }
 
-void print_hash(const uint8_t *hash)
-{
+
+void print_hash(const uint8_t *hash){
 
     printf("Hash: ");
 
-    for (int i = 0; i < 20; i++)
-    {
+    for(int i = 0;i<20;i++){
 
-        printf("%02x", hash[i]);
+        printf("%02x",hash[i]);
+
     }
 
     printf("\n");
-}
 
-int main()
-{
-    uint8_t result[20];
-    const char *filename = "input.txt";
-    FILE *fp = fopen(filename, "rb");
-
-    if (fp == NULL)
-    {
-        perror("Failed to open file");
-        return 1;
-    }
-
-    Sha1Context ctx;
-
-    sha1_init(&ctx);
-
-    uint8_t file_buffer[4096];
-    size_t bytes_read;
-
-    while ((bytes_read = fread(file_buffer, 1, sizeof(file_buffer), fp)) != 0)
-    {
-        sha1_update(&ctx, file_buffer, bytes_read);
-    }
-
-    sha1_final(&ctx, result);
-
-    fclose(fp);
-
-    print_hash(result);
-
-    return 0;
 }
