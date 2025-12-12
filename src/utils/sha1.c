@@ -5,6 +5,38 @@
 
 #define BLOCK_SIZE 64
 
+#define ROTL(x, n) (((x) << (n)) | ((x) >> (32 - (n))))
+
+
+void expand_message_block(const uint8_t *block_512bits)
+{
+    uint32_t W[80]; 
+
+    for (int t = 0; t < 16; t++)
+    {
+
+        W[t] = (block_512bits[t * 4] << 24) |
+               (block_512bits[t * 4 + 1] << 16) |
+               (block_512bits[t * 4 + 2] << 8) |
+               (block_512bits[t * 4 + 3]);
+    }
+
+    for (int t = 16; t < 80; t++)
+    {
+        uint32_t temp = W[t - 3] ^ W[t - 8] ^ W[t - 14] ^ W[t - 16];
+
+        W[t] = ROTL(temp, 1);
+    }
+
+    printf("Expansion Complete.\n");
+    for(int i = 0;i<80;i++){
+
+        printf("W[%d], %08X\n",i,W[i]);
+
+    }
+}
+
+
 
 void pad_blocks(const char *input_string)
 {
@@ -57,9 +89,12 @@ void pad_blocks(const char *input_string)
 
 int main()
 {
-    pad_blocks("abc");
+    expand_message_block("abc");
 
-    pad_blocks("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    printf("2nd string");
+
+    expand_message_block("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 
     return 0;
 }
+
