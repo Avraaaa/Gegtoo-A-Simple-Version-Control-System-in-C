@@ -23,6 +23,12 @@ typedef struct MinHeap
     struct MinHeapNode **array;
 } MinHeap;
 
+typedef struct
+{
+    unsigned char buffer;
+    int bitPos;
+} BitWriter;
+
 void HuffmanCodes(char data[], int freq[], int size);
 void compress(char *inputFile, char *outputFile);
 
