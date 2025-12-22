@@ -4,14 +4,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <string.h>
+#include <stdint.h>
 
 #define MAX_TREE_HT 257
 
 typedef struct MinHeapNode
 {
-    char data;
+    unsigned char data;
     unsigned freq;
     struct MinHeapNode *left, *right;
 } MinHeapNode;
@@ -29,7 +29,13 @@ typedef struct
     int bitPos;
 } BitWriter;
 
-void HuffmanCodes(char data[], int freq[], int size);
+typedef struct
+{
+    unsigned char buffer;
+    int bitPos;
+} BitReader;
+
 void compress(char *inputFile, char *outputFile);
+void decompress(char *inputFile, char *outputFile);
 
 #endif

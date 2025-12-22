@@ -220,6 +220,25 @@ void generateCodes(MinHeapNode *root, char codeArr[], int depth, char **codeTabl
 }
 
 
+int readBit(FILE *input, BitReader *reader)
+{
+    if (reader->bitPos == 0)
+    {
+        int byte = fgetc(input);
+        if (byte == EOF)
+        {
+            return -1;
+        }
+
+        reader->buffer = (unsigned char)byte;
+        reader->bitPos = 8;
+    }
+
+    reader->bitPos--;
+    return (reader->buffer >> reader->bitPos) & 1;
+}
+
+
 void writeHeader(FILE *output, __uint32_t freq[256], __uint64_t fileSize)
 {
     __uint32_t magic = 0x48554646;
@@ -229,6 +248,24 @@ void writeHeader(FILE *output, __uint32_t freq[256], __uint64_t fileSize)
     fwrite(&fileSize, sizeof(__uint64_t), 1, output);
 
     fwrite(freq, sizeof(__uint32_t), 256, output);
+}
+
+
+void readHeader(FILE *input, __uint32_t freq[256], __uint64_t *fileSize)
+{
+    __uint32_t magic;
+
+    fread(&magic, sizeof(__uint32_t), 1, input);
+
+    if (magic != 0x48554646)
+    {
+        fprintf(stderr, "Error: Invalid file format\n");
+        exit(1);
+    }
+
+    fread(fileSize, sizeof(__uint64_t), 1, input);
+
+    fread(freq, sizeof(__uint32_t), 256, input);
 }
 
 
@@ -339,6 +376,44 @@ void compressFile(FILE *input, FILE *output, char **codeTable, __uint32_t freq[2
 }
 
 
+void decompressFile(FILE *input, FILE *output, MinHeapNode *root, __uint64_t fileSize)
+{
+    BitReader reader;
+    __uint64_t bytesWritten = 0;
+
+    reader.bitPos = 0;
+    reader.buffer = 0;
+
+    MinHeapNode *current = root;
+
+    while (bytesWritten < fileSize)
+    {
+        int bit = readBit(input, &reader);
+
+        if (bit == -1)
+        {
+            fprintf(stderr, "Error: Unexpected EOF\n");
+            break;
+        }
+
+        if (bit == 0)
+        {
+            current = current->left;
+        }
+
+        else
+            current = current->right;
+
+        if (isLeaf(current))
+        {
+            fputc(current->data, output);
+            bytesWritten++;
+            current = root;
+        }
+    }
+}
+
+
 void freeCodeTable(char **codeTable)
 {
     if (codeTable == NULL)
@@ -436,4 +511,66 @@ void compress(char *inputFile, char *outputFile)
     freeHuffmanTree(root);
 
     printf("Compressed %s into %s\n", inputFile, outputFile);
+}
+
+
+void decompress(char *inputFile, char *outputFile)
+{
+    FILE *input = fopen(inputFile, "rb");
+
+    if (!input)
+    {
+        perror("Error opening input file");
+        return;
+    }
+
+    __uint32_t freq[256];
+    __uint64_t fileSize;
+
+    readHeader(input, freq, &fileSize);
+
+    int uniqueChars = 0;
+    for (int i = 0; i < 256; i++)
+    {
+        if (freq[i] > 0)
+        {
+            uniqueChars++;
+        }
+    }
+
+    char *data = (char *)malloc(uniqueChars);
+    int *freqData = (int *)malloc(uniqueChars * sizeof(int));
+    int indx = 0;
+
+    for (int i = 0; i < 256; i++)
+    {
+        if (freq[i] > 0)
+        {
+            data[indx] = (char)i;
+            freqData[indx] = freq[i];
+            indx++;
+        }
+    }
+
+    MinHeapNode *root = buildHuffmanTree(data, freqData, uniqueChars);
+
+    FILE *output = fopen(outputFile, "wb");
+
+    if (!output)
+    {
+        perror("Error creating output file");
+        fclose(input);
+        return;
+    }
+
+    decompressFile(input, output, root, fileSize);
+
+    fclose(input);
+    fclose(output);
+
+    free(data);
+    free(freqData);
+    freeHuffmanTree(root);
+
+    printf("Decompressed %s into %s\n", inputFile, outputFile);
 }
