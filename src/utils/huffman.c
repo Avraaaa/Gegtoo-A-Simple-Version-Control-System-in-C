@@ -222,3 +222,265 @@ void HuffmanCodes(char data[], int freq[], int size)
 
     printCodes(root, arr, top);
 }
+
+
+typedef struct
+{
+    unsigned char buffer;
+    int bitPos;
+} BitWriter;
+
+
+void generateCodes(MinHeapNode *root, char codeArr[], int depth, char **codeTable)
+{
+    if (root == NULL)
+    {
+        return;
+    }
+
+    if (depth >= MAX_TREE_HT)
+    {
+        fprintf(stderr, "Error: Tree depth limit exceeded\n");
+        exit(1);
+    }
+
+    if (isLeaf(root))
+    {
+        unsigned char charIndx = (unsigned char)root->data;
+        codeTable[charIndx] = (char *)malloc(depth + 1);
+
+        if (codeTable[charIndx] == NULL)
+        {
+            perror("Error: Memory allocation failed");
+            exit(1);
+        }
+
+        for (int i = 0; i < depth; i++)
+        {
+            codeTable[charIndx][i] = codeArr[i];
+        }
+
+        codeTable[charIndx][depth] = '\0';
+
+        return;
+    }
+    else
+    {
+        codeArr[depth] = '0';
+        generateCodes(root->left, codeArr, depth + 1, codeTable);
+
+        codeArr[depth] = '1';
+        generateCodes(root->right, codeArr, depth + 1, codeTable);
+    }
+}
+
+
+void writeHeader(FILE *output, __uint32_t freq[256], __uint64_t fileSize)
+{
+    __uint32_t magic = 0x48554646;
+
+    fwrite(&magic, sizeof(__uint32_t), 1, output);
+
+    fwrite(&fileSize, sizeof(__uint64_t), 1, output);
+
+    fwrite(freq, sizeof(__uint32_t), 256, output);
+}
+
+
+void writeBit(FILE *output, int bit, BitWriter *writer)
+{
+    bit = bit & 1;
+    writer->buffer |= (bit << (7 - writer->bitPos));
+
+    writer->bitPos++;
+
+    if (writer->bitPos == 8)
+    {
+        fputc(writer->buffer, output);
+
+        if (ferror(output))
+        {
+            perror("Error writing to file");
+            exit(1);
+        }
+
+        writer->buffer = 0;
+        writer->bitPos = 0;
+    }
+}
+
+
+void flushBits(FILE *output, BitWriter *writer)
+{
+    if (writer->bitPos == 0)
+    {
+        return;
+    }
+
+    fputc(writer->buffer, output);
+
+    if (ferror(output))
+    {
+        perror("Error writing to file");
+        exit(1);
+    }
+
+    writer->buffer = 0;
+    writer->bitPos = 0;
+}
+
+
+void calculateFrequency(FILE *input, __uint32_t freq[256])
+{
+    int byte;
+
+    for (int i = 0; i < 256; i++)
+    {
+        freq[i] = 0;
+    }
+
+    unsigned char buffer[4096];
+    size_t bytesRead;
+
+    while ((bytesRead = fread(buffer, 1, 4096, input)) > 0)
+    {
+        for (size_t i = 0; i < bytesRead; i++)
+        {
+            freq[buffer[i]]++;
+        }
+    }
+
+    fseek(input, 0, SEEK_SET);
+}
+
+
+void compressFile(FILE *input, FILE *output, char **codeTable, __uint32_t freq[256], __uint64_t fileSize)
+{
+    BitWriter writer;
+    int byte;
+
+    writeHeader(output, freq, fileSize);
+
+    writer.buffer = 0;
+    writer.bitPos = 0;
+
+    while ((byte = fgetc(input)) != EOF)
+    {
+        char *code = codeTable[byte];
+
+        for (int i = 0; code[i] != '\0'; i++)
+        {
+            int bit;
+
+            if (code[i] == '1')
+            {
+                bit = 1;
+            }
+            else
+                bit = 0;
+
+            writeBit(output, bit, &writer);
+        }
+    }
+    flushBits(output, &writer);
+}
+
+
+void freeCodeTable(char **codeTable)
+{
+    if (codeTable == NULL)
+    {
+        return;
+    }
+
+    for (int i = 0; i < 256; i++)
+    {
+        if (codeTable[i] != NULL)
+        {
+            free(codeTable[i]);
+        }
+    }
+    free(codeTable);
+}
+
+
+void freeHuffmanTree(MinHeapNode *root)
+{
+    if (root == NULL)
+    {
+        return;
+    }
+
+    freeHuffmanTree(root->left);
+    freeHuffmanTree(root->right);
+    free(root);
+}
+
+
+void compress(char *inputFile, char *outputFile)
+{
+    FILE *input = fopen(inputFile, "rb");
+    if (!input)
+    {
+        perror("Error opening input file");
+        return;
+    }
+
+    fseek(input, 0, SEEK_END);
+    __uint64_t fileSize = ftell(input);
+    fseek(input, 0, SEEK_SET);
+
+    __uint32_t freq[256];
+
+    calculateFrequency(input, freq);
+
+    int uniqueChars = 0;
+
+    for (int i = 0; i < 256; i++)
+    {
+        if (freq[i] > 0)
+        {
+            uniqueChars++;
+        }
+    }
+
+    char *data = (char *)malloc(uniqueChars);
+    int *freqData = (int *)malloc(uniqueChars * sizeof(int));
+    int indx = 0;
+
+    for (int i = 0; i < 256; i++)
+    {
+        if (freq[i] > 0)
+        {
+            data[indx] = (char)i;
+            freqData[indx] = freq[i];
+            indx++;
+        }
+    }
+
+    MinHeapNode *root = buildHuffmanTree(data, freqData, uniqueChars);
+
+    char **codeTable = (char **)calloc(256, sizeof(char *));
+    char codeArr[MAX_TREE_HT];
+    generateCodes(root, codeArr, 0, codeTable);
+
+    FILE *output = fopen(outputFile, "wb");
+
+    if (!output)
+    {
+        perror("Error creating output file");
+        fclose(input);
+        return;
+    }
+
+    compressFile(input, output, codeTable, freq, fileSize);
+
+    fclose(input);
+    fclose(output);
+    free(data);
+    free(freqData);
+    freeCodeTable(codeTable);
+    freeHuffmanTree(root);
+
+    printf("Compressed %s into %s\n", inputFile, outputFile);
+}

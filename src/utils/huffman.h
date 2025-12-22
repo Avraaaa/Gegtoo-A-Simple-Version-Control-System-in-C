@@ -4,8 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 
-#define MAX_TREE_HT 100
+#define MAX_TREE_HT 257
 
 typedef struct MinHeapNode
 {
@@ -22,5 +24,6 @@ typedef struct MinHeap
 } MinHeap;
 
 void HuffmanCodes(char data[], int freq[], int size);
+void compress(char *inputFile, char *outputFile);
 
 #endif
