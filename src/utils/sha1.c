@@ -75,7 +75,7 @@ uint32_t *expand_message_block(const uint8_t *block_512bits, uint32_t W[80])
 }
 
 
-void roundcompression(const uint8_t *block_512bits, uint32_t *H)
+void round_compression(const uint8_t *block_512bits, uint32_t *H)
 {
     uint32_t A = H[0];
     uint32_t B = H[1];
@@ -138,7 +138,7 @@ void sha1_update(Sha1Context *ctx, const uint8_t *data, size_t len){
 
         if(ctx->buffer_len == 64){
 
-            roundcompression(ctx->buffer, ctx->H);
+            round_compression(ctx->buffer, ctx->H);
             ctx->buffer_len = 0;
 
         }
@@ -158,7 +158,7 @@ void sha1_final(Sha1Context *ctx, uint8_t *digest){
             ctx->buffer[ctx->buffer_len++] = 0;
         }
 
-        roundcompression(ctx->buffer,ctx->H);
+        round_compression(ctx->buffer,ctx->H);
         ctx->buffer_len = 0;
 
     }
@@ -173,7 +173,7 @@ void sha1_final(Sha1Context *ctx, uint8_t *digest){
 
     }
 
-    roundcompression(ctx->buffer,ctx->H);
+    round_compression(ctx->buffer,ctx->H);
 
     serialize_hash(ctx->H,digest);
 
@@ -192,4 +192,12 @@ void print_hash(const uint8_t *hash){
 
     printf("\n");
 
+}
+
+
+void sha1_hash(const uint8_t *data, size_t len, uint8_t *digest) {
+    Sha1Context ctx;
+    sha1_init(&ctx);
+    sha1_update(&ctx, data, len);
+    sha1_final(&ctx, digest);
 }

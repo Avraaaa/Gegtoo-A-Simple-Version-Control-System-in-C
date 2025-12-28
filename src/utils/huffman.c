@@ -1,18 +1,18 @@
 #include "huffman.h"
 
-MinHeapNode *newNode(char data, unsigned freq)
+MinHeapNode *new_node(char data, unsigned freq)
 {
-    MinHeapNode *newNode = (MinHeapNode *)malloc(sizeof(MinHeapNode));
+    MinHeapNode *new_node = (MinHeapNode *)malloc(sizeof(MinHeapNode));
 
-    newNode->data = data;
-    newNode->freq = freq;
-    newNode->left = NULL;
-    newNode->right = NULL;
-    return newNode;
+    new_node->data = data;
+    new_node->freq = freq;
+    new_node->left = NULL;
+    new_node->right = NULL;
+    return new_node;
 }
 
 
-MinHeap *createMinHeap(unsigned capacity)
+MinHeap *create_minheap(unsigned capacity)
 {
     MinHeap *newHeap = (MinHeap *)malloc(sizeof(MinHeap));
 
@@ -23,7 +23,7 @@ MinHeap *createMinHeap(unsigned capacity)
 }
 
 
-void swapMinHeapNode(MinHeapNode **a, MinHeapNode **b)
+void swap_minheap_node(MinHeapNode **a, MinHeapNode **b)
 {
     MinHeapNode *temp = *a;
     *a = *b;
@@ -32,7 +32,7 @@ void swapMinHeapNode(MinHeapNode **a, MinHeapNode **b)
 }
 
 
-void minHeapify(MinHeap *minHeap, int index)
+void min_heapify(MinHeap *minHeap, int index)
 {
     int smallest = index;
     int left = (2 * index);
@@ -50,14 +50,14 @@ void minHeapify(MinHeap *minHeap, int index)
 
     if (smallest != index)
     {
-        swapMinHeapNode(&minHeap->array[smallest], &minHeap->array[index]);
+        swap_minheap_node(&minHeap->array[smallest], &minHeap->array[index]);
 
-        minHeapify(minHeap, smallest);
+        min_heapify(minHeap, smallest);
     }
 }
 
 
-bool isSizeOne(MinHeap *minHeap)
+bool is_size_one(MinHeap *minHeap)
 {
     if (minHeap->size == 1)
     {
@@ -70,19 +70,19 @@ bool isSizeOne(MinHeap *minHeap)
 }
 
 
-MinHeapNode *extractMin(MinHeap *minHeap)
+MinHeapNode *extract_min(MinHeap *minHeap)
 {
     MinHeapNode *temp = minHeap->array[1];
     minHeap->array[1] = minHeap->array[minHeap->size];
 
     --minHeap->size;
-    minHeapify(minHeap, 1);
+    min_heapify(minHeap, 1);
 
     return temp;
 }
 
 
-void insertMinHeap(MinHeap *minHeap, MinHeapNode *minHeapNode)
+void insert_minheap(MinHeap *minHeap, MinHeapNode *minHeapNode)
 {
     ++minHeap->size;
     int i = minHeap->size;
@@ -97,18 +97,18 @@ void insertMinHeap(MinHeap *minHeap, MinHeapNode *minHeapNode)
 }
 
 
-void buildMinHeap(MinHeap *minHeap)
+void build_minheap(MinHeap *minHeap)
 {
     int n = minHeap->size;
 
     for (int i = (n) / 2; i >= 1; i--)
     {
-        minHeapify(minHeap, i);
+        min_heapify(minHeap, i);
     }
 }
 
 
-void printArr(int arr[], int n)
+void print_arr(int arr[], int n)
 {
     for (int i = 0; i < n; i++)
     {
@@ -118,7 +118,7 @@ void printArr(int arr[], int n)
 }
 
 
-bool isLeaf(MinHeapNode *root)
+bool is_leaf(MinHeapNode *root)
 {
     if (root->left == NULL && root->right == NULL)
     {
@@ -129,54 +129,54 @@ bool isLeaf(MinHeapNode *root)
 }
 
 
-MinHeap *createAndBuildMinHeap(char data[], int freq[], int size)
+MinHeap *create_and_build_minheap(char data[], int freq[], int size)
 {
-    MinHeap *minHeap = createMinHeap(size);
+    MinHeap *minHeap = create_minheap(size);
 
     for (int i = 1; i <= size; i++)
     {
-        minHeap->array[i] = newNode(data[i - 1], freq[i - 1]);
+        minHeap->array[i] = new_node(data[i - 1], freq[i - 1]);
     }
 
     minHeap->size = size;
-    buildMinHeap(minHeap);
+    build_minheap(minHeap);
 
     return minHeap;
 }
 
 
-MinHeapNode *buildHuffmanTree(char data[], int freq[], int size)
+MinHeapNode *build_huffman_tree(char data[], int freq[], int size)
 {
     MinHeapNode *left, *right, *top;
 
-    MinHeap *minHeap = createAndBuildMinHeap(data, freq, size);
+    MinHeap *minHeap = create_and_build_minheap(data, freq, size);
 
     if (minHeap->size == 1)
     {
-        left = extractMin(minHeap);
-        top = newNode('$', left->freq);
+        left = extract_min(minHeap);
+        top = new_node('$', left->freq);
         top->left = left;
         top->right = NULL;
         return top;
     }
 
-    while (!isSizeOne(minHeap))
+    while (!is_size_one(minHeap))
     {
-        left = extractMin(minHeap);
-        right = extractMin(minHeap);
+        left = extract_min(minHeap);
+        right = extract_min(minHeap);
 
-        top = newNode('$', left->freq + right->freq);
+        top = new_node('$', left->freq + right->freq);
         top->left = left;
         top->right = right;
 
-        insertMinHeap(minHeap, top);
+        insert_minheap(minHeap, top);
     }
 
-    return extractMin(minHeap);
+    return extract_min(minHeap);
 }
 
 
-void generateCodes(MinHeapNode *root, char codeArr[], int depth, char **codeTable)
+void generate_codes(MinHeapNode *root, char codeArr[], int depth, char **codeTable)
 {
     if (root == NULL)
     {
@@ -189,7 +189,7 @@ void generateCodes(MinHeapNode *root, char codeArr[], int depth, char **codeTabl
         exit(1);
     }
 
-    if (isLeaf(root))
+    if (is_leaf(root))
     {
         unsigned char charIndx = (unsigned char)root->data;
         codeTable[charIndx] = (char *)malloc(depth + 1);
@@ -212,15 +212,15 @@ void generateCodes(MinHeapNode *root, char codeArr[], int depth, char **codeTabl
     else
     {
         codeArr[depth] = '0';
-        generateCodes(root->left, codeArr, depth + 1, codeTable);
+        generate_codes(root->left, codeArr, depth + 1, codeTable);
 
         codeArr[depth] = '1';
-        generateCodes(root->right, codeArr, depth + 1, codeTable);
+        generate_codes(root->right, codeArr, depth + 1, codeTable);
     }
 }
 
 
-int readBit(FILE *input, BitReader *reader)
+int read_bit(FILE *input, BitReader *reader)
 {
     if (reader->bitPos == 0)
     {
@@ -239,7 +239,7 @@ int readBit(FILE *input, BitReader *reader)
 }
 
 
-void writeHeader(FILE *output, __uint32_t freq[256], __uint64_t fileSize)
+void write_header(FILE *output, __uint32_t freq[256], __uint64_t fileSize)
 {
     __uint32_t magic = 0x48554646;
 
@@ -251,7 +251,7 @@ void writeHeader(FILE *output, __uint32_t freq[256], __uint64_t fileSize)
 }
 
 
-void readHeader(FILE *input, __uint32_t freq[256], __uint64_t *fileSize)
+void read_header(FILE *input, __uint32_t freq[256], __uint64_t *fileSize)
 {
     __uint32_t magic;
 
@@ -269,7 +269,7 @@ void readHeader(FILE *input, __uint32_t freq[256], __uint64_t *fileSize)
 }
 
 
-void writeBit(FILE *output, int bit, BitWriter *writer)
+void write_bit(FILE *output, int bit, BitWriter *writer)
 {
     bit = bit & 1;
     writer->buffer |= (bit << (7 - writer->bitPos));
@@ -292,7 +292,7 @@ void writeBit(FILE *output, int bit, BitWriter *writer)
 }
 
 
-void flushBits(FILE *output, BitWriter *writer)
+void flush_bits(FILE *output, BitWriter *writer)
 {
     if (writer->bitPos == 0)
     {
@@ -312,15 +312,15 @@ void flushBits(FILE *output, BitWriter *writer)
 }
 
 
-void HuffmanCodes(char data[], int freq[], int size)
+void huffman_codes(char data[], int freq[], int size)
 {
-    MinHeapNode *root = buildHuffmanTree(data, freq, size);
+    MinHeapNode *root = build_huffman_tree(data, freq, size);
 
     int arr[MAX_TREE_HT], top = 0;
 }
 
 
-void calculateFrequency(FILE *input, __uint32_t freq[256])
+void calculate_frequency(FILE *input, __uint32_t freq[256])
 {
     int byte;
 
@@ -344,12 +344,12 @@ void calculateFrequency(FILE *input, __uint32_t freq[256])
 }
 
 
-void compressFile(FILE *input, FILE *output, char **codeTable, __uint32_t freq[256], __uint64_t fileSize)
+void compress_file(FILE *input, FILE *output, char **codeTable, __uint32_t freq[256], __uint64_t fileSize)
 {
     BitWriter writer;
     int byte;
 
-    writeHeader(output, freq, fileSize);
+    write_header(output, freq, fileSize);
 
     writer.buffer = 0;
     writer.bitPos = 0;
@@ -369,14 +369,14 @@ void compressFile(FILE *input, FILE *output, char **codeTable, __uint32_t freq[2
             else
                 bit = 0;
 
-            writeBit(output, bit, &writer);
+            write_bit(output, bit, &writer);
         }
     }
-    flushBits(output, &writer);
+    flush_bits(output, &writer);
 }
 
 
-void decompressFile(FILE *input, FILE *output, MinHeapNode *root, __uint64_t fileSize)
+void decompress_file(FILE *input, FILE *output, MinHeapNode *root, __uint64_t fileSize)
 {
     BitReader reader;
     __uint64_t bytesWritten = 0;
@@ -388,7 +388,7 @@ void decompressFile(FILE *input, FILE *output, MinHeapNode *root, __uint64_t fil
 
     while (bytesWritten < fileSize)
     {
-        int bit = readBit(input, &reader);
+        int bit = read_bit(input, &reader);
 
         if (bit == -1)
         {
@@ -404,7 +404,7 @@ void decompressFile(FILE *input, FILE *output, MinHeapNode *root, __uint64_t fil
         else
             current = current->right;
 
-        if (isLeaf(current))
+        if (is_leaf(current))
         {
             fputc(current->data, output);
             bytesWritten++;
@@ -414,7 +414,7 @@ void decompressFile(FILE *input, FILE *output, MinHeapNode *root, __uint64_t fil
 }
 
 
-void freeCodeTable(char **codeTable)
+void free_code_table(char **codeTable)
 {
     if (codeTable == NULL)
     {
@@ -432,15 +432,15 @@ void freeCodeTable(char **codeTable)
 }
 
 
-void freeHuffmanTree(MinHeapNode *root)
+void free_huffman_tree(MinHeapNode *root)
 {
     if (root == NULL)
     {
         return;
     }
 
-    freeHuffmanTree(root->left);
-    freeHuffmanTree(root->right);
+    free_huffman_tree(root->left);
+    free_huffman_tree(root->right);
     free(root);
 }
 
@@ -460,7 +460,7 @@ void compress(char *inputFile, char *outputFile)
 
     __uint32_t freq[256];
 
-    calculateFrequency(input, freq);
+    calculate_frequency(input, freq);
 
     int uniqueChars = 0;
 
@@ -486,11 +486,11 @@ void compress(char *inputFile, char *outputFile)
         }
     }
 
-    MinHeapNode *root = buildHuffmanTree(data, freqData, uniqueChars);
+    MinHeapNode *root = build_huffman_tree(data, freqData, uniqueChars);
 
     char **codeTable = (char **)calloc(256, sizeof(char *));
     char codeArr[MAX_TREE_HT];
-    generateCodes(root, codeArr, 0, codeTable);
+    generate_codes(root, codeArr, 0, codeTable);
 
     FILE *output = fopen(outputFile, "wb");
 
@@ -501,14 +501,14 @@ void compress(char *inputFile, char *outputFile)
         return;
     }
 
-    compressFile(input, output, codeTable, freq, fileSize);
+    compress_file(input, output, codeTable, freq, fileSize);
 
     fclose(input);
     fclose(output);
     free(data);
     free(freqData);
-    freeCodeTable(codeTable);
-    freeHuffmanTree(root);
+    free_code_table(codeTable);
+    free_huffman_tree(root);
 
     printf("Compressed %s into %s\n", inputFile, outputFile);
 }
@@ -527,7 +527,7 @@ void decompress(char *inputFile, char *outputFile)
     __uint32_t freq[256];
     __uint64_t fileSize;
 
-    readHeader(input, freq, &fileSize);
+    read_header(input, freq, &fileSize);
 
     int uniqueChars = 0;
     for (int i = 0; i < 256; i++)
@@ -552,7 +552,7 @@ void decompress(char *inputFile, char *outputFile)
         }
     }
 
-    MinHeapNode *root = buildHuffmanTree(data, freqData, uniqueChars);
+    MinHeapNode *root = build_huffman_tree(data, freqData, uniqueChars);
 
     FILE *output = fopen(outputFile, "wb");
 
@@ -563,14 +563,14 @@ void decompress(char *inputFile, char *outputFile)
         return;
     }
 
-    decompressFile(input, output, root, fileSize);
+    decompress_file(input, output, root, fileSize);
 
     fclose(input);
     fclose(output);
 
     free(data);
     free(freqData);
-    freeHuffmanTree(root);
+    free_huffman_tree(root);
 
     printf("Decompressed %s into %s\n", inputFile, outputFile);
 }

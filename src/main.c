@@ -4,11 +4,22 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <errno.h>
+#include "src/utils/sha1.h"
+#include "src/utils/huffman.h"
 
 #ifndef PATH_MAX
-    #define PATH_MAX 4096
+#define PATH_MAX 4096
 #endif
+
+typedef struct
+{
+    char *data;
+    size_t size;
+    char type[10];
+    char id[41];
+} Blob;
 
 void create_directory(const char *path)
 {
@@ -16,7 +27,7 @@ void create_directory(const char *path)
     char tmp[PATH_MAX];
     char *p = NULL;
     size_t len;
-    
+
     snprintf(tmp, sizeof(tmp), "%s", path);
     len = strlen(tmp);
 
@@ -27,7 +38,6 @@ void create_directory(const char *path)
 
     for (p = tmp + 1; *p; p++)
     {
-
         if (*p == '/')
         {
             *p = 0;
@@ -111,9 +121,160 @@ void geg_init(const char *path)
         fclose(head_file);
     }
 
-
-
     printf("Initialized an empty geg repository in %s/\n", buffer);
+}
+
+int is_ignored(const char *name)
+{
+
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0 || strcmp(name, ".geg") == 0)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+char *read_workspace_files(const char *path, size_t *out_size)
+{
+
+    FILE *fp = fopen(path, "rb");
+
+    if (!fp)
+    {
+        perror("fopen");
+        return NULL;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    size_t length = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    char *buffer = malloc(length);
+
+    if (!buffer)
+    {
+        fprintf(stderr, "Memory allocation failed\n");
+        fclose(fp);
+        return NULL;
+    }
+
+    fread(buffer, 1, length, fp);
+    fclose(fp);
+
+    *out_size = length;
+    return buffer;
+}
+
+void database_store(Blob *blob)
+{
+    char header[64];
+    int header_len = snprintf(header, sizeof(header), "%s %zu", blob->type, blob->size);
+
+    size_t full_len = header_len + 1 + blob->size;
+    unsigned char *full_data = malloc(full_len);
+    if (!full_data)
+    {
+        perror("Malloc failed");
+        return;
+    }
+
+    memcpy(full_data, header, header_len);
+    full_data[header_len] = '\0';
+    memcpy(full_data + header_len + 1, blob->data, blob->size);
+
+    unsigned char hash_bin[20];
+    sha1_hash(full_data, full_len, hash_bin);
+
+    for (int i = 0; i < 20; i++)
+    {
+        sprintf(blob->id + (i * 2), "%02x", hash_bin[i]);
+    }
+
+    char dir_path[PATH_MAX];
+    char final_path[PATH_MAX];
+    char temp_path[PATH_MAX];
+
+    snprintf(dir_path, sizeof(dir_path), ".geg/objects/%.2s", blob->id);
+    snprintf(final_path, sizeof(final_path), "%s/%s", dir_path, blob->id + 2);
+    snprintf(temp_path, sizeof(temp_path), ".geg/temp_%s", blob->id);
+
+    FILE *tmp = fopen(temp_path, "wb");
+    if (!tmp)
+    {
+        perror("Failed to create temp file");
+        free(full_data);
+        return;
+    }
+
+    fwrite(full_data, 1, full_len, tmp);
+    fclose(tmp);
+
+    create_directory(dir_path);
+    compress(temp_path, final_path);
+
+    remove(temp_path);
+    free(full_data);
+}
+
+char **list_workspace_files(const char *root_path, int *count)
+{
+
+    DIR *dir;
+    struct dirent *entry;
+    char **file_list = NULL;
+
+    dir = opendir(root_path);
+
+    if (dir == NULL)
+    {
+        perror("opendir");
+        return NULL;
+    }
+
+    while ((entry = readdir(dir)) != NULL)
+    {
+        if (is_ignored(entry->d_name))
+        {
+            continue;
+        }
+
+        char **temp = realloc(file_list, sizeof(char *) * (*count + 1));
+
+        if (!temp)
+        {
+            perror("realloc");
+            break;
+        }
+
+        file_list = temp;
+        file_list[*count] = strdup(entry->d_name);
+        (*count)++;
+    }
+
+    closedir(dir);
+    return file_list;
+}
+
+void geg_commit(const char *filename)
+{
+
+    size_t size;
+    char *content = read_workspace_files(filename, &size);
+
+    if (content)
+    {
+        Blob blob;
+        blob.data = content;
+        blob.size = size;
+        strcpy(blob.type, "blob");
+        database_store(&blob);
+
+        printf("Stored blob: %s (%s)\n", blob.id, filename);
+        free(content);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -144,6 +305,32 @@ int main(int argc, char *argv[])
             geg_init(NULL);
         }
     }
+
+    else if (strcmp(command, "commit") == 0)
+    {
+        char root_path[PATH_MAX];
+
+        if (getcwd(root_path, sizeof(root_path)) == NULL)
+        {
+            perror("getcwd");
+            return 1;
+        }
+
+        int count = 0;
+        char **files = list_workspace_files(root_path, &count);
+
+        if (files)
+        {
+
+            for (int i = 0; i < count; i++)
+            {
+                geg_commit(files[i]);
+                free(files[i]);
+            }
+            free(files);
+        }
+    }
+
     else
     {
         printf("geg: '%s' is not a geg command.\n", command);
