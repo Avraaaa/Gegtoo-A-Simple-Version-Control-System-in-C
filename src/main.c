@@ -6,8 +6,8 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
-#include "src/utils/sha1.h"
-#include "src/utils/huffman.h"
+#include "utils/sha1.h"
+#include "utils/huffman.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -20,6 +20,88 @@ typedef struct
     char type[10];
     char id[41];
 } Blob;
+
+typedef struct
+{
+    char *name;
+    char *id;
+} Entry;
+
+typedef struct
+{
+    Entry **entries;
+    size_t count;
+} Tree;
+
+Entry *new_entry(char *name, char *id)
+{
+
+    Entry *e = malloc(sizeof(Entry));
+    e->name = strdup(name);
+    e->id = strdup(id);
+    return e;
+}
+
+void free_entry(Entry *e)
+{
+
+    if (e)
+    {
+        free(e->name);
+        free(e->id);
+        free(e);
+    }
+}
+
+int compare_entries(const void *a, const void *b)
+{
+    Entry *ea = *(Entry **)a;
+    Entry *eb = *(Entry **)b;
+    return strcmp(ea->name, eb->name);
+}
+
+void hex_to_binary(const char *hex, unsigned char *out)
+{
+
+    for (int i = 0; i < 20; i++)
+    {
+        sscanf(hex + 2 * i, "%2hhx", &out[i]);
+    }
+}
+
+unsigned char *serialize_tree(Tree *tree, size_t *out_size)
+{
+
+    qsort(tree->entries, tree->count, sizeof(Entry *), compare_entries);
+
+    size_t total_size = 0;
+    const char *MODE = "100644";
+
+    for (size_t i = 0; i < tree->count; i++)
+    {
+        total_size += strlen(MODE) + 1 + strlen(tree->entries[i]->name) + 1 + 20;
+    }
+
+    unsigned char *buffer = malloc(total_size);
+    size_t offset = 0;
+
+    for (size_t i = 0; i < tree->count; i++)
+    {
+
+        Entry *entry = tree->entries[i];
+
+        int written = sprintf((char *)(buffer + offset), "%s %s", MODE, entry->name);
+        offset += written;
+
+        buffer[offset++] = '\0';
+
+        hex_to_binary(entry->id, buffer + offset);
+        offset += 20;
+    }
+
+    *out_size = total_size;
+    return buffer;
+}
 
 void create_directory(const char *path)
 {
@@ -127,10 +209,17 @@ void geg_init(const char *path)
 int is_ignored(const char *name)
 {
 
-    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0 || strcmp(name, ".geg") == 0)
+    struct stat path_stat;
+
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0 || strcmp(name, ".geg") == 0 || strcmp(name, ".git") == 0)
     {
         return 1;
     }
+
+    if(stat(name,&path_stat) ==0 && S_ISDIR(path_stat.st_mode)){
+        return 1;
+    }
+
     else
     {
         return 0;
@@ -214,7 +303,6 @@ void database_store(Blob *blob)
 
     create_directory(dir_path);
     compress(temp_path, final_path);
-
     remove(temp_path);
     free(full_data);
 }
@@ -258,22 +346,84 @@ char **list_workspace_files(const char *root_path, int *count)
     return file_list;
 }
 
-void geg_commit(const char *filename)
+void geg_commit(void)
 {
 
-    size_t size;
-    char *content = read_workspace_files(filename, &size);
+    char root_path[PATH_MAX];
 
-    if (content)
+    if (getcwd(root_path, sizeof(root_path)) == NULL)
     {
-        Blob blob;
-        blob.data = content;
-        blob.size = size;
-        strcpy(blob.type, "blob");
-        database_store(&blob);
+        perror("getcwd");
+        return;
+    }
 
-        printf("Stored blob: %s (%s)\n", blob.id, filename);
-        free(content);
+    int count = 0;
+    char **files = list_workspace_files(root_path, &count);
+
+    if (files)
+    {
+
+        Tree tree;
+        tree.count = count;
+        tree.entries = malloc(sizeof(Entry *) * count);
+
+        if (!tree.entries)
+        {
+
+            perror("malloc");
+            return;
+        }
+
+        int valid_count = 0;
+
+        for (int i = 0; i < count; i++)
+        {
+
+            size_t size;
+            char *content = read_workspace_files(files[i], &size);
+
+            if (content)
+            {
+
+                Blob blob;
+                blob.data = content;
+                blob.size = size;
+                strcpy(blob.type, "blob");
+                database_store(&blob);
+
+                tree.entries[valid_count] = new_entry(files[i], blob.id);
+                valid_count++;
+
+                free(content);
+            }
+            free(files[i]);
+        }
+        free(files);
+
+        tree.count = valid_count;
+        size_t tree_size = 0;
+        unsigned char *tree_data = serialize_tree(&tree, &tree_size);
+
+        if (tree_data)
+        {
+
+            Blob tree_blob;
+            tree_blob.data = (char *)tree_data;
+            tree_blob.size = tree_size;
+            strcpy(tree_blob.type, "tree");
+
+            database_store(&tree_blob);
+            printf("tree %s\n", tree_blob.id);
+
+            free(tree_data);
+        }
+
+        for (size_t i = 0; i < tree.count; i++)
+        {
+
+            free_entry(tree.entries[i]);
+        }
+        free(tree.entries);
     }
 }
 
@@ -308,27 +458,7 @@ int main(int argc, char *argv[])
 
     else if (strcmp(command, "commit") == 0)
     {
-        char root_path[PATH_MAX];
-
-        if (getcwd(root_path, sizeof(root_path)) == NULL)
-        {
-            perror("getcwd");
-            return 1;
-        }
-
-        int count = 0;
-        char **files = list_workspace_files(root_path, &count);
-
-        if (files)
-        {
-
-            for (int i = 0; i < count; i++)
-            {
-                geg_commit(files[i]);
-                free(files[i]);
-            }
-            free(files);
-        }
+        geg_commit();
     }
 
     else
