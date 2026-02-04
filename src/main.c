@@ -6,12 +6,14 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
+#include <time.h>
 #include "utils/sha1.h"
 #include "utils/huffman.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
+
 
 typedef struct
 {
@@ -21,17 +23,20 @@ typedef struct
     char id[41];
 } Blob;
 
+
 typedef struct
 {
     char *name;
     char *id;
 } Entry;
 
+
 typedef struct
 {
     Entry **entries;
     size_t count;
 } Tree;
+
 
 Entry *new_entry(char *name, char *id)
 {
@@ -41,6 +46,7 @@ Entry *new_entry(char *name, char *id)
     e->id = strdup(id);
     return e;
 }
+
 
 void free_entry(Entry *e)
 {
@@ -60,6 +66,7 @@ int compare_entries(const void *a, const void *b)
     return strcmp(ea->name, eb->name);
 }
 
+
 void hex_to_binary(const char *hex, unsigned char *out)
 {
 
@@ -68,6 +75,7 @@ void hex_to_binary(const char *hex, unsigned char *out)
         sscanf(hex + 2 * i, "%2hhx", &out[i]);
     }
 }
+
 
 unsigned char *serialize_tree(Tree *tree, size_t *out_size)
 {
@@ -102,6 +110,7 @@ unsigned char *serialize_tree(Tree *tree, size_t *out_size)
     *out_size = total_size;
     return buffer;
 }
+
 
 void create_directory(const char *path)
 {
@@ -143,6 +152,7 @@ void create_directory(const char *path)
         }
     };
 }
+
 
 void geg_init(const char *path)
 {
@@ -206,6 +216,7 @@ void geg_init(const char *path)
     printf("Initialized an empty geg repository in %s/\n", buffer);
 }
 
+
 int is_ignored(const char *name)
 {
 
@@ -226,6 +237,7 @@ int is_ignored(const char *name)
         return 0;
     }
 }
+
 
 char *read_workspace_files(const char *path, size_t *out_size)
 {
@@ -257,6 +269,7 @@ char *read_workspace_files(const char *path, size_t *out_size)
     *out_size = length;
     return buffer;
 }
+
 
 void database_store(Blob *blob)
 {
@@ -308,6 +321,78 @@ void database_store(Blob *blob)
     free(full_data);
 }
 
+
+int get_head_ref_path(char *ref_path_out){
+
+    char head_path[PATH_MAX];
+    snprintf(head_path,sizeof(head_path),".geg/HEAD");
+
+    FILE *fp = fopen(head_path,"r");
+    if(!fp) return -1;
+
+    char buffer[1024];
+
+    if(fscanf(fp,"ref: %s", buffer)!=1){
+        fclose(fp);
+        return -1;
+    }
+
+    fclose(fp);
+
+    snprintf(ref_path_out,PATH_MAX,".geg/%s",buffer);
+    
+    return 0;
+
+}
+
+
+char *get_parent_commit_id(){
+
+    char ref_path[PATH_MAX];
+    if(get_head_ref_path(ref_path)!=0) return NULL;
+
+    FILE *fp = fopen(ref_path,"r");
+    if(!fp) return NULL;
+
+    char *commit_id = malloc(41);
+    if(fscanf(fp,"%40s",commit_id)!=1){
+
+        free(commit_id);
+        fclose(fp);
+        return NULL;
+
+    }
+
+    fclose(fp);
+    return commit_id;
+
+}
+
+
+void update_head_ref(const char *new_commit_id){
+
+    char ref_path[PATH_MAX];
+
+    if(get_head_ref_path(ref_path)==0){
+
+        FILE *fp = fopen(ref_path,"w");
+        if(fp){
+
+            fprintf(fp,"%s\n",new_commit_id);
+            fclose(fp);
+
+        }
+        else{
+
+            perror("Failed to update HEAD ref");
+
+        }
+
+    }
+
+}
+
+
 char **list_workspace_files(const char *root_path, int *count)
 {
 
@@ -347,9 +432,9 @@ char **list_workspace_files(const char *root_path, int *count)
     return file_list;
 }
 
+
 void geg_commit(void)
 {
-
     char root_path[PATH_MAX];
 
     if (getcwd(root_path, sizeof(root_path)) == NULL)
@@ -363,29 +448,18 @@ void geg_commit(void)
 
     if (files)
     {
-
         Tree tree;
         tree.count = count;
         tree.entries = malloc(sizeof(Entry *) * count);
-
-        if (!tree.entries)
-        {
-
-            perror("malloc");
-            return;
-        }
-
         int valid_count = 0;
 
         for (int i = 0; i < count; i++)
         {
-
             size_t size;
             char *content = read_workspace_files(files[i], &size);
 
             if (content)
             {
-
                 Blob blob;
                 blob.data = content;
                 blob.size = size;
@@ -404,29 +478,70 @@ void geg_commit(void)
         tree.count = valid_count;
         size_t tree_size = 0;
         unsigned char *tree_data = serialize_tree(&tree, &tree_size);
+        char tree_id[41] = {0};
 
         if (tree_data)
         {
-
             Blob tree_blob;
             tree_blob.data = (char *)tree_data;
             tree_blob.size = tree_size;
             strcpy(tree_blob.type, "tree");
 
             database_store(&tree_blob);
-            printf("tree %s\n", tree_blob.id);
+            strcpy(tree_id, tree_blob.id);
 
             free(tree_data);
         }
 
         for (size_t i = 0; i < tree.count; i++)
         {
-
             free_entry(tree.entries[i]);
         }
         free(tree.entries);
+
+        char *parent_id = get_parent_commit_id();
+
+        time_t now = time(NULL);
+        char time_str[32];
+        strftime(time_str, sizeof(time_str), "%s %z", localtime(&now));
+
+        char *author = "Geg User <geg@gmail.com>";
+        char *message = "Automatic commit by geg";
+
+        size_t commit_size = 1024 + (parent_id ? 50 : 0);
+        char *commit_content = malloc(commit_size);
+
+        int offset = sprintf(commit_content, "tree %s\n", tree_id);
+
+        if (parent_id)
+        {
+            offset += sprintf(commit_content + offset, "parent %s\n", parent_id);
+        }
+
+        offset += sprintf(commit_content + offset,
+                          "author %s %s\n"
+                          "committer %s %s\n"
+                          "\n"
+                          "%s\n",
+                          author, time_str, author, time_str, message);
+
+        Blob commit_blob;
+        commit_blob.data = commit_content;
+        commit_blob.size = offset;
+        strcpy(commit_blob.type, "commit");
+
+        database_store(&commit_blob);
+
+        printf("[%s (root-commit)] %s\n", commit_blob.id, message);
+
+        update_head_ref(commit_blob.id);
+
+        free(commit_content);
+        if (parent_id)
+            free(parent_id);
     }
 }
+
 
 void geg_cat(const char *id)
 {
@@ -523,6 +638,7 @@ void geg_cat(const char *id)
     fclose(fp);
     remove(temp_path);
 }
+
 int main(int argc, char *argv[])
 {
 
