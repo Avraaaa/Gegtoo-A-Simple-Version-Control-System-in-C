@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <limits.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -104,6 +105,22 @@ unsigned char *serialize_tree(Tree *tree, size_t *out_size)
     return buffer;
 }
 
+void pack32_be(uint32_t b, unsigned char *u)
+{
+
+    u[0] = (b >> 24) & 0xFF;
+    u[1] = (b >> 16) & 0xFF;
+    u[2] = (b >> 8) & 0xFF;
+    u[3] = (b) & 0xFF;
+}
+
+void pack16_be(uint16_t b, unsigned char *u)
+{
+
+    u[0] = (b >> 8) & 0xFF;
+    u[1] = (b) & 0xFF;
+}
+
 void create_directory(const char *path)
 {
 
@@ -143,68 +160,6 @@ void create_directory(const char *path)
             perror("mkdir");
         }
     };
-}
-
-void geg_init(const char *path)
-{
-
-    char buffer[PATH_MAX];
-    char resolved[PATH_MAX];
-
-    if (path == NULL)
-    {
-        strcpy(buffer, ".geg");
-    }
-    else
-    {
-        if (realpath(path, resolved) != NULL)
-        {
-            snprintf(buffer, sizeof(buffer), "%s/.geg", resolved);
-        }
-        else
-        {
-            if (path[0] == '/')
-            {
-                snprintf(buffer, sizeof(buffer), "%s/.geg", path);
-            }
-            else
-            {
-                char curr_work_dir[1024];
-
-                if (getcwd(curr_work_dir, sizeof(curr_work_dir)) == NULL)
-                {
-                    perror("getcwd");
-                    return;
-                }
-                snprintf(buffer, sizeof(buffer), "%s/%s/.geg", curr_work_dir, path);
-            }
-        }
-    }
-
-    char objects[PATH_MAX];
-    char refs[PATH_MAX];
-    char heads[PATH_MAX];
-
-    snprintf(objects, sizeof(objects), "%s/objects", buffer);
-    snprintf(refs, sizeof(refs), "%s/refs", buffer);
-    snprintf(heads, sizeof(heads), "%s/refs/heads", buffer);
-
-    create_directory(buffer);
-    create_directory(objects);
-    create_directory(refs);
-    create_directory(heads);
-
-    char head_path[PATH_MAX];
-    snprintf(head_path, sizeof(head_path), "%s/HEAD", buffer);
-    FILE *head_file = fopen(head_path, "w");
-
-    if (head_file)
-    {
-        fprintf(head_file, "ref: refs/heads/master\n");
-        fclose(head_file);
-    }
-
-    printf("Initialized an empty geg repository in %s/\n", buffer);
 }
 
 int is_ignored(const char *name)
@@ -422,6 +377,12 @@ char **list_workspace_files(const char *root_path, int *count)
 
 void restore_blob(const char *path, const char *id)
 {
+
+    if (strcmp(path, "geg") == 0 || strcmp(path, "./geg") == 0)
+    {
+        return;
+    }
+
     char obj_path[PATH_MAX];
     char temp_path[PATH_MAX];
     snprintf(obj_path, sizeof(obj_path), ".geg/objects/%.2s/%s", id, id + 2);
@@ -533,6 +494,167 @@ void restore_tree(const char *tree_id, const char *base_path)
     }
     fclose(fp);
     remove(temp_path);
+}
+
+void geg_init(const char *path)
+{
+
+    char buffer[PATH_MAX];
+    char resolved[PATH_MAX];
+
+    if (path == NULL)
+    {
+        strcpy(buffer, ".geg");
+    }
+    else
+    {
+        if (realpath(path, resolved) != NULL)
+        {
+            snprintf(buffer, sizeof(buffer), "%s/.geg", resolved);
+        }
+        else
+        {
+            if (path[0] == '/')
+            {
+                snprintf(buffer, sizeof(buffer), "%s/.geg", path);
+            }
+            else
+            {
+                char curr_work_dir[1024];
+
+                if (getcwd(curr_work_dir, sizeof(curr_work_dir)) == NULL)
+                {
+                    perror("getcwd");
+                    return;
+                }
+                snprintf(buffer, sizeof(buffer), "%s/%s/.geg", curr_work_dir, path);
+            }
+        }
+    }
+
+    char objects[PATH_MAX];
+    char refs[PATH_MAX];
+    char heads[PATH_MAX];
+
+    snprintf(objects, sizeof(objects), "%s/objects", buffer);
+    snprintf(refs, sizeof(refs), "%s/refs", buffer);
+    snprintf(heads, sizeof(heads), "%s/refs/heads", buffer);
+
+    create_directory(buffer);
+    create_directory(objects);
+    create_directory(refs);
+    create_directory(heads);
+
+    char head_path[PATH_MAX];
+    snprintf(head_path, sizeof(head_path), "%s/HEAD", buffer);
+    FILE *head_file = fopen(head_path, "w");
+
+    if (head_file)
+    {
+        fprintf(head_file, "ref: refs/heads/master\n");
+        fclose(head_file);
+    }
+
+    printf("Initialized an empty geg repository in %s/\n", buffer);
+}
+
+void geg_add(int argc, char *argv[])
+{
+
+    if (argc < 3)
+    {
+        printf("Usage: ./geg add <files...>\n");
+        return;
+    }
+
+    FILE *index_file = fopen(".geg/index", "wb");
+
+    if (!index_file)
+    {
+        perror("fopen");
+        return;
+    }
+
+    size_t capacity = 4096;
+    unsigned char *full_data = malloc(capacity);
+    size_t offset = 0;
+
+    unsigned char header[12];
+    memcpy(header, "DIRC", 4);
+    pack32_be(2, header + 4);
+    pack32_be(0, header + 8);
+
+    memcpy(full_data + offset, header, 12);
+    offset += 12;
+
+    int count = 0;
+
+    for (int i = 2; i < argc; i++)
+    {
+        size_t size;
+        char *content = read_workspace_files(argv[i], &size);
+
+        if (content)
+        {
+            Blob blob;
+            blob.data = content;
+            blob.size = size;
+            strcpy(blob.type, "blob");
+            database_store(&blob);
+
+            struct stat st;
+            stat(argv[i], &st);
+
+            unsigned char entry[62];
+            pack32_be(st.st_ctime, entry);
+            pack32_be(0, entry + 4);
+            pack32_be(st.st_mtime, entry + 8);
+            pack32_be(0, entry + 12);
+            pack32_be(st.st_dev, entry + 16);
+            pack32_be(st.st_ino, entry + 20);
+            pack32_be(st.st_mode, entry + 24);
+            pack32_be(st.st_uid, entry + 28);
+            pack32_be(st.st_gid, entry + 32);
+            pack32_be(size, entry + 36);
+
+            unsigned char hash_bin[20];
+            hex_to_binary(blob.id, hash_bin);
+            memcpy(entry + 40, hash_bin, 20);
+
+            unsigned int name_len = strlen(argv[i]);
+            pack16_be(name_len & 0xFFF, entry + 60);
+
+            if (offset + 62 + name_len + 8 + 20 > capacity)
+            {
+                capacity *= 2;
+                full_data = realloc(full_data, capacity);
+            }
+
+            memcpy(full_data + offset, entry, 62);
+            offset += 62;
+
+            memcpy(full_data + offset, argv[i], name_len);
+            offset += name_len;
+
+            int padding = 8 - ((62 + name_len) % 8);
+            memset(full_data + offset, 0, padding);
+            offset += padding;
+
+            count++;
+            free(content);
+        }
+    }
+
+    pack32_be(count, full_data + 8);
+
+    unsigned char index_sha[20];
+    sha1_hash(full_data, offset, index_sha);
+    memcpy(full_data + offset, index_sha, 20);
+    offset += 20;
+
+    fwrite(full_data, 1, offset, index_file);
+    fclose(index_file);
+    free(full_data);
 }
 
 void geg_commit(void)
@@ -901,14 +1023,13 @@ void geg_checkout(const char *target_id)
     printf("Checking out commit %s (tree %s)...\n", target_id, tree_id);
     restore_tree(tree_id, "");
 
+    FILE *head = fopen(".geg/HEAD", "w");
 
-    FILE *head = fopen(".geg/HEAD","w");
+    if (head)
+    {
 
-    if(head){
-
-        fprintf(head,"%s\n",target_id);
+        fprintf(head, "%s\n", target_id);
         fclose(head);
-
     }
 }
 
@@ -939,6 +1060,11 @@ int main(int argc, char *argv[])
         {
             geg_init(NULL);
         }
+    }
+
+    else if (strcmp(command, "add") == 0)
+    {
+        geg_add(argc, argv);
     }
 
     else if (strcmp(command, "commit") == 0)
