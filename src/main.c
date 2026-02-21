@@ -35,6 +35,42 @@ typedef struct
     size_t count;
 } Tree;
 
+typedef struct
+{
+    uint32_t ctime_sec;
+    uint32_t ctime_nsec;
+    uint32_t mtime_sec;
+    uint32_t mtime_nsec;
+    uint32_t dev;
+    uint32_t ino;
+    uint32_t mode;
+    uint32_t uid;
+    uint32_t gid;
+    uint32_t size;
+    unsigned char sha1[20];
+    uint16_t flags;
+    char *path;
+} IndexEntry;
+
+typedef struct
+{
+    IndexEntry **entries;
+    uint32_t count;
+} GegIndex;
+
+typedef struct
+{
+    char *path;
+    unsigned char sha1[20];
+} HeadEntry;
+
+typedef struct
+{
+    HeadEntry **entries;
+    size_t count;
+    size_t capacity;
+} HeadTree;
+
 Entry *new_entry(char *name, char *id)
 {
 
@@ -119,6 +155,16 @@ void pack16_be(uint16_t b, unsigned char *u)
 
     u[0] = (b >> 8) & 0xFF;
     u[1] = (b) & 0xFF;
+}
+
+uint32_t unpack32_be(const unsigned char *b)
+{
+    return ((uint32_t)b[0] << 24) | ((uint32_t)b[1] << 16) | ((uint32_t)b[2] << 8) | b[3];
+}
+
+uint16_t unpack16_be(const unsigned char *b)
+{
+    return ((uint16_t)b[0] << 8) | b[1];
 }
 
 void create_directory(const char *path)
@@ -496,6 +542,221 @@ void restore_tree(const char *tree_id, const char *base_path)
     remove(temp_path);
 }
 
+GegIndex *load_index()
+{
+    FILE *fp = fopen(".geg/index", "rb");
+    if (!fp)
+        return NULL;
+
+    unsigned char header[12];
+    if (fread(header, 1, 12, fp) != 12)
+    {
+        fclose(fp);
+        return NULL;
+    }
+
+    if (memcmp(header, "DIRC", 4) != 0 || unpack32_be(header + 4) != 2)
+    {
+        printf("Error: Invalid or unsupported index format.\n");
+        fclose(fp);
+        return NULL;
+    }
+
+    GegIndex *index = malloc(sizeof(GegIndex));
+    index->count = unpack32_be(header + 8);
+    index->entries = malloc(sizeof(IndexEntry *) * index->count);
+
+    for (uint32_t i = 0; i < index->count; i++)
+    {
+        unsigned char fixed[62];
+        fread(fixed, 1, 62, fp);
+
+        IndexEntry *entry = malloc(sizeof(IndexEntry));
+        entry->ctime_sec = unpack32_be(fixed);
+        entry->ctime_nsec = unpack32_be(fixed + 4);
+        entry->mtime_sec = unpack32_be(fixed + 8);
+        entry->mtime_nsec = unpack32_be(fixed + 12);
+        entry->dev = unpack32_be(fixed + 16);
+        entry->ino = unpack32_be(fixed + 20);
+        entry->mode = unpack32_be(fixed + 24);
+        entry->uid = unpack32_be(fixed + 28);
+        entry->gid = unpack32_be(fixed + 32);
+        entry->size = unpack32_be(fixed + 36);
+        memcpy(entry->sha1, fixed + 40, 20);
+        entry->flags = unpack16_be(fixed + 60);
+
+        int name_len = entry->flags & 0xFFF;
+        entry->path = malloc(name_len + 1);
+        fread(entry->path, 1, name_len, fp);
+        entry->path[name_len] = '\0';
+
+        // Read the null-byte padding to advance the file pointer to the next entry
+        int padding = 8 - ((62 + name_len) % 8);
+        fseek(fp, padding, SEEK_CUR);
+
+        index->entries[i] = entry;
+    }
+
+    fclose(fp);
+    return index;
+}
+
+void free_index(GegIndex *index)
+{
+    if (!index)
+        return;
+    for (uint32_t i = 0; i < index->count; i++)
+    {
+        free(index->entries[i]->path);
+        free(index->entries[i]);
+    }
+    free(index->entries);
+    free(index);
+}
+
+void get_commit_tree(const char *commit_id, char *tree_id_out)
+{
+
+    char obj_path[PATH_MAX];
+    char temp_path[PATH_MAX];
+    snprintf(obj_path, sizeof(obj_path), ".geg/objects/%.2s/%s", commit_id, commit_id + 2);
+    snprintf(temp_path, sizeof(temp_path), ".geg/temp_read_%s", commit_id);
+
+    if (access(obj_path, F_OK) == -1)
+    {
+        tree_id_out[0] = '\0';
+        return;
+    }
+
+    decompress(obj_path, temp_path);
+    FILE *fp = fopen(temp_path, "rb");
+
+    if (!fp)
+    {
+        return;
+    }
+
+    char type[10];
+    size_t size;
+    fscanf(fp, "%s %zu", type, &size);
+    fgetc(fp);
+
+    char line[1024];
+
+    if (fgets(line, sizeof(line), fp))
+    {
+        if (strncmp(line, "tree ", 5) == 0)
+        {
+            sscanf(line, "tree %40s", tree_id_out);
+        }
+    }
+
+    fclose(fp);
+    remove(temp_path);
+}
+
+void load_tree_entries(const char *tree_id, const char *base_path, HeadTree *head_tree)
+{
+
+    char obj_path[PATH_MAX];
+    char temp_path[PATH_MAX];
+    snprintf(obj_path, sizeof(obj_path), ".geg/objects/%.2s/%s", tree_id, tree_id + 2);
+    snprintf(temp_path, sizeof(temp_path), ".geg/temp_tree_read_%s", tree_id);
+
+    if (access(obj_path, F_OK) == -1)
+    {
+        return;
+    }
+
+    decompress(obj_path, temp_path);
+    FILE *fp = fopen(temp_path, "rb");
+
+    if (!fp)
+    {
+        return;
+    }
+
+    char type[10];
+    size_t size;
+
+    if (fscanf(fp, "%s %zu", type, &size) != 2 || strcmp(type, "tree") != 0)
+    {
+        fclose(fp);
+        return;
+    }
+
+    fgetc(fp);
+
+    long data_start = ftell(fp);
+
+    while (ftell(fp) < data_start + size)
+    {
+        char mode[10];
+        char name[255];
+        unsigned char bin_sha[20];
+        char hex_sha[41];
+
+        if (fscanf(fp, "%s", mode) != 1)
+        {
+            break;
+        }
+
+        fgetc(fp);
+
+        int i = 0;
+        char c;
+
+        while ((c = fgetc(fp)) != '\0' && c != EOF && i < 254)
+        {
+            name[i++] = c;
+        }
+
+        name[i] = '\0';
+
+        if (fread(bin_sha, 1, 20, fp) != 20)
+        {
+            break;
+        }
+
+        for (int k = 0; k < 20; k++)
+        {
+            sprintf(hex_sha + (k * 2), "%02x", bin_sha[k]);
+        }
+
+        char full_path[PATH_MAX];
+
+        if (base_path && strlen(base_path) > 0)
+        {
+            snprintf(full_path, sizeof(full_path), "%s/%s", base_path, name);
+        }
+        else
+        {
+            snprintf(full_path, sizeof(full_path), "%s", name);
+        }
+
+        if (strcmp(mode, "100644") == 0)
+        {
+            if (head_tree->count >= head_tree->capacity)
+            {
+                head_tree->capacity = head_tree->capacity == 0 ? 10 : head_tree->capacity * 2;
+                head_tree->entries = realloc(head_tree->entries, sizeof(HeadEntry *) * head_tree->capacity);
+            }
+
+            HeadEntry *he = malloc(sizeof(HeadEntry));
+            he->path = strdup(full_path);
+            memcpy(he->sha1, bin_sha, 20);
+            head_tree->entries[head_tree->count++] = he;
+        }
+        else
+        {
+            load_tree_entries(hex_sha, full_path, head_tree);
+        }
+    }
+
+    fclose(fp);
+    remove(temp_path);
+}
+
 void geg_init(const char *path)
 {
 
@@ -657,8 +918,9 @@ void geg_add(int argc, char *argv[])
     free(full_data);
 }
 
-void geg_commit(void)
+void geg_status(void)
 {
+
     char root_path[PATH_MAX];
 
     if (getcwd(root_path, sizeof(root_path)) == NULL)
@@ -670,99 +932,328 @@ void geg_commit(void)
     int count = 0;
     char **files = list_workspace_files(root_path, &count);
 
+    GegIndex *index = load_index();
+
+    printf("Changes to be committed:\n");
+    printf("  (use \"geg restore --staged <file>...\" to unstage)\n\n");
+
+    int has_staged = 0;
+
+    char *head_commit = get_parent_commit_id();
+    HeadTree head_tree = {NULL, 0, 0};
+
+    if (head_commit)
+    {
+        char tree_id[41] = {0};
+        get_commit_tree(head_commit, tree_id);
+
+        if (strlen(tree_id) > 0)
+        {
+            load_tree_entries(tree_id, "", &head_tree);
+        }
+
+        free(head_commit);
+    }
+
+    if (index)
+    {
+        for (uint32_t i = 0; i < index->count; i++)
+        {
+            IndexEntry *ie = index->entries[i];
+            int found_in_head = 0;
+
+            for (size_t j = 0; j < head_tree.count; j++)
+            {
+                if (strcmp(ie->path, head_tree.entries[j]->path) == 0)
+                {
+                    found_in_head = 1;
+
+                    if (memcmp(ie->sha1, head_tree.entries[j]->sha1, 20) != 0)
+                    {
+                        printf("    modified:   %s\n", ie->path);
+                        has_staged = 1;
+                    }
+
+                    break;
+                }
+            }
+
+            if (!found_in_head)
+            {
+                printf("    new file:   %s\n", ie->path);
+                has_staged = 1;
+            }
+        }
+    }
+
+    for (size_t j = 0; j < head_tree.count; j++)
+    {
+        int found_in_index = 0;
+
+        if (index)
+        {
+            for (uint32_t i = 0; i < index->count; i++)
+            {
+                if (strcmp(head_tree.entries[j]->path, index->entries[i]->path) == 0)
+                {
+                    found_in_index = 1;
+                    break;
+                }
+            }
+        }
+
+        if (!found_in_index)
+        {
+            printf("    deleted:    %s\n", head_tree.entries[j]->path);
+            has_staged = 1;
+        }
+
+        free(head_tree.entries[j]->path);
+        free(head_tree.entries[j]);
+    }
+
+    if (head_tree.entries)
+    {
+        free(head_tree.entries);
+    }
+
+    if (!has_staged)
+    {
+        printf("    (none)\n");
+    }
+
+    printf("\nChanges not staged for commit:\n");
+    printf("  (use \"geg add <file>...\" to update what will be committed)\n");
+    printf("  (use \"geg restore <file>...\" to discard changes in working directory)\n\n");
+
+    int has_modified = 0;
+
+    if (index)
+    {
+        for (uint32_t i = 0; i < index->count; i++)
+        {
+            IndexEntry *entry = index->entries[i];
+            struct stat st;
+
+            if (stat(entry->path, &st) == 0)
+            {
+                int modified = 0;
+
+                if (entry->size != st.st_size)
+                {
+                    modified = 1;
+                }
+                else if (entry->mtime_sec != (uint32_t)st.st_mtime)
+                {
+                    size_t size;
+                    char *content = read_workspace_files(entry->path, &size);
+
+                    if (content)
+                    {
+                        char header[64];
+                        int header_len = snprintf(header, sizeof(header), "blob %zu", size);
+                        size_t full_len = header_len + 1 + size;
+                        unsigned char *full_data = malloc(full_len);
+
+                        memcpy(full_data, header, header_len);
+                        full_data[header_len] = '\0';
+                        memcpy(full_data + header_len + 1, content, size);
+
+                        unsigned char hash_bin[20];
+                        sha1_hash(full_data, full_len, hash_bin);
+
+                        free(full_data);
+                        free(content);
+
+                        if (memcmp(entry->sha1, hash_bin, 20) != 0)
+                        {
+                            modified = 1;
+                        }
+                    }
+                }
+
+                if (modified)
+                {
+                    printf("    modified:   %s\n", entry->path);
+                    has_modified = 1;
+                }
+            }
+            else
+            {
+                printf("    deleted:    %s\n", entry->path);
+                has_modified = 1;
+            }
+        }
+    }
+
+    if (!has_modified)
+    {
+        printf("    (none)\n");
+    }
+
+    printf("\nUntracked files:\n");
+    printf("  (use \"geg add <file>...\" to include files to be committed)\n\n");
+
+    int has_untracked = 0;
+
+    for (int i = 0; i < count; i++)
+    {
+        int is_tracked = 0;
+
+        if (index)
+        {
+            for (uint32_t j = 0; j < index->count; j++)
+            {
+                if (strcmp(files[i], index->entries[j]->path) == 0)
+                {
+                    is_tracked = 1;
+                    break;
+                }
+            }
+        }
+
+        if (!is_tracked)
+        {
+            printf("    %s\n", files[i]);
+            has_untracked = 1;
+        }
+
+        free(files[i]);
+    }
+
+    if (!has_untracked)
+    {
+        printf("    (none)\n");
+    }
+
     if (files)
     {
-        Tree tree;
-        tree.count = count;
-        tree.entries = malloc(sizeof(Entry *) * count);
-        int valid_count = 0;
-
-        for (int i = 0; i < count; i++)
-        {
-            size_t size;
-            char *content = read_workspace_files(files[i], &size);
-
-            if (content)
-            {
-                Blob blob;
-                blob.data = content;
-                blob.size = size;
-                strcpy(blob.type, "blob");
-                database_store(&blob);
-
-                tree.entries[valid_count] = new_entry(files[i], blob.id);
-                valid_count++;
-
-                free(content);
-            }
-            free(files[i]);
-        }
         free(files);
+    }
 
-        tree.count = valid_count;
-        size_t tree_size = 0;
-        unsigned char *tree_data = serialize_tree(&tree, &tree_size);
-        char tree_id[41] = {0};
+    if (index)
+    {
+        free_index(index);
+    }
+}
 
-        if (tree_data)
+void geg_commit(void)
+{
+
+    GegIndex *index = load_index();
+
+    if (!index || index->count == 0)
+    {
+        printf("nothing to commit\n");
+        if (index)
         {
-            Blob tree_blob;
-            tree_blob.data = (char *)tree_data;
-            tree_blob.size = tree_size;
-            strcpy(tree_blob.type, "tree");
+            free_index(index);
+        }
+        return;
+    }
 
-            database_store(&tree_blob);
-            strcpy(tree_id, tree_blob.id);
+    Tree tree;
+    tree.count = index->count;
+    tree.entries = malloc(sizeof(Entry *) * tree.count);
 
-            free(tree_data);
+    for (uint32_t i = 0; i < index->count; i++)
+    {
+        char hex_sha[41];
+
+        for (int k = 0; k < 20; k++)
+        {
+            sprintf(hex_sha + (k * 2), "%02x", index->entries[i]->sha1[k]);
         }
 
-        for (size_t i = 0; i < tree.count; i++)
-        {
-            free_entry(tree.entries[i]);
-        }
-        free(tree.entries);
+        tree.entries[i] = new_entry(index->entries[i]->path, hex_sha);
+    }
 
-        char *parent_id = get_parent_commit_id();
+    size_t tree_size = 0;
+    unsigned char *tree_data = serialize_tree(&tree, &tree_size);
+    char tree_id[41] = {0};
 
-        time_t now = time(NULL);
-        char time_str[32];
-        strftime(time_str, sizeof(time_str), "%s %z", localtime(&now));
+    if (tree_data)
+    {
+        Blob tree_blob;
+        tree_blob.data = (char *)tree_data;
+        tree_blob.size = tree_size;
+        strcpy(tree_blob.type, "tree");
 
-        char *author = "Geg User <geg@gmail.com>";
-        char *message = "Automatic commit by geg";
+        database_store(&tree_blob);
+        strcpy(tree_id, tree_blob.id);
 
-        size_t commit_size = 1024 + (parent_id ? 50 : 0);
-        char *commit_content = malloc(commit_size);
+        free(tree_data);
+    }
 
-        int offset = sprintf(commit_content, "tree %s\n", tree_id);
+    for (size_t i = 0; i < tree.count; i++)
+    {
+        free_entry(tree.entries[i]);
+    }
 
-        if (parent_id)
-        {
-            offset += sprintf(commit_content + offset, "parent %s\n", parent_id);
-        }
+    free(tree.entries);
+    free_index(index);
 
-        offset += sprintf(commit_content + offset,
-                          "author %s %s\n"
-                          "committer %s %s\n"
-                          "\n"
-                          "%s\n",
-                          author, time_str, author, time_str, message);
+    char *parent_id = get_parent_commit_id();
 
-        Blob commit_blob;
-        commit_blob.data = commit_content;
-        commit_blob.size = offset;
-        strcpy(commit_blob.type, "commit");
+    time_t now = time(NULL);
+    struct tm local_tm = *localtime(&now);
+    struct tm gmt_tm = *gmtime(&now);
 
-        database_store(&commit_blob);
+    gmt_tm.tm_isdst = local_tm.tm_isdst;
 
-        printf("[%s%s] %s\n", commit_blob.id, parent_id ? "" : " (root-commit)", message);
+    time_t local_time = mktime(&local_tm);
+    time_t gmt_time = mktime(&gmt_tm);
 
-        update_head_ref(commit_blob.id);
+    long offset = (long)difftime(local_time, gmt_time);
 
-        free(commit_content);
-        if (parent_id)
-            free(parent_id);
+    char sign = '+';
+
+    if (offset < 0)
+    {
+        sign = '-';
+        offset = -offset;
+    }
+
+    int hours = offset / 3600;
+    int mins = (offset % 3600) / 60;
+
+    char time_str[32];
+    sprintf(time_str, "%ld %c%02d%02d", (long)now, sign, hours, mins);
+    char *author = "Geg User <geg@gmail.com>";
+    char *message = "Automatic commit by geg";
+
+    size_t commit_size = 1024 + (parent_id ? 50 : 0);
+    char *commit_content = malloc(commit_size);
+
+    int offset = sprintf(commit_content, "tree %s\n", tree_id);
+
+    if (parent_id)
+    {
+        offset += sprintf(commit_content + offset, "parent %s\n", parent_id);
+    }
+
+    offset += sprintf(commit_content + offset,
+                      "author %s %s\n"
+                      "committer %s %s\n"
+                      "\n"
+                      "%s\n",
+                      author, time_str, author, time_str, message);
+
+    Blob commit_blob;
+    commit_blob.data = commit_content;
+    commit_blob.size = offset;
+    strcpy(commit_blob.type, "commit");
+
+    database_store(&commit_blob);
+
+    printf("[%s%s] %s\n", commit_blob.id, parent_id ? "" : " (root-commit)", message);
+
+    update_head_ref(commit_blob.id);
+
+    free(commit_content);
+    if (parent_id)
+    {
+        free(parent_id);
     }
 }
 
@@ -844,7 +1335,7 @@ void geg_cat(const char *id)
 
                 sprintf(hex_sha + (i * 2), "%02x", bin_sha[i]);
             }
-            printf("%s blob %s\t%s\n", mode, hex_sha, name);
+            printf("%s blob %s    %s\n", mode, hex_sha, name);
         }
     }
 
@@ -1090,6 +1581,10 @@ int main(int argc, char *argv[])
             geg_checkout(argv[2]);
     }
 
+    else if (strcmp(command, "status") == 0)
+    {
+        geg_status();
+    }
     else
     {
         printf("geg: '%s' is not a geg command.\n", command);
