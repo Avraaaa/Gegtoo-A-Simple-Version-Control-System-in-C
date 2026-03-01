@@ -1059,7 +1059,7 @@ void geg_status(void)
     GegIndex *index = load_index();
 
     printf("Changes to be committed:\n");
-    printf("  (use \"geg restore --staged <file>...\" to unstage)\n\n");
+    printf("  (use \"geg remove --staged <file>...\" to unstage)\n\n");
 
     int has_staged = 0;
 
@@ -1148,7 +1148,7 @@ void geg_status(void)
 
     printf("\nChanges not staged for commit:\n");
     printf("  (use \"geg add <file>...\" to update what will be committed)\n");
-    printf("  (use \"geg restore <file>...\" to discard changes in working directory)\n\n");
+    printf("  (use \"geg remove <file>...\" to discard changes in working directory)\n\n");
 
     int has_modified = 0;
 
@@ -1266,7 +1266,7 @@ void geg_commit(void)
 
     GegIndex *index = load_index();
 
-    if (!index || index->count == 0)
+    if (!index)
     {
         printf("nothing to commit\n");
         if (index)
@@ -1349,14 +1349,14 @@ void geg_commit(void)
     size_t commit_size = 1024 + (parent_id ? 50 : 0);
     char *commit_content = malloc(commit_size);
 
-    int offset = sprintf(commit_content, "tree %s\n", tree_id);
+    int content_offset = sprintf(commit_content, "tree %s\n", tree_id);
 
     if (parent_id)
     {
-        offset += sprintf(commit_content + offset, "parent %s\n", parent_id);
+        content_offset += sprintf(commit_content + content_offset, "parent %s\n", parent_id);
     }
 
-    offset += sprintf(commit_content + offset,
+    content_offset += sprintf(commit_content + content_offset,
                       "author %s %s\n"
                       "committer %s %s\n"
                       "\n"
@@ -1365,7 +1365,7 @@ void geg_commit(void)
 
     Blob commit_blob;
     commit_blob.data = commit_content;
-    commit_blob.size = offset;
+    commit_blob.size = content_offset;
     strcpy(commit_blob.type, "commit");
 
     database_store(&commit_blob);
@@ -1564,7 +1564,7 @@ void geg_log(void)
             }
         }
 
-        printf("commit: %s\n", current_id);
+        printf("commit %s\n", current_id);
         printf("Author: %s\n", author);
 
         printf("\n");
