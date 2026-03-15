@@ -37,12 +37,36 @@ int main(int argc, char *argv[])
 
     else if (strcmp(command, "commit") == 0)
     {
-        geg_commit();
+        if (argc == 4 && strcmp(argv[2], "-m") == 0)
+        {
+            geg_commit(argv[3]);
+        }
+        else if (argc >= 3 && strcmp(argv[2], "-m") == 0)
+        {
+            printf("error:switch 'm' requires a value\n");
+            printf("Usage: ./geg commit -m <message>\n");
+        }
+
+        else if (argc == 2)
+        {
+            geg_commit(NULL);
+        }
+        else
+        {
+            printf("Usage: ./geg commit [-m <message>]\n");
+        }
     }
 
     else if (strcmp(command, "cat") == 0)
     {
-        geg_cat(argv[2]);
+        if (argc < 3)
+        {
+            printf("Usage: ./geg cat <object_id>\n");
+        }
+        else
+        {
+            geg_cat(argv[2]);
+        }
     }
 
     else if (strcmp(command, "log") == 0)

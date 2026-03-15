@@ -1,9 +1,10 @@
 #include "../../include/core.h"
 #include "../../include/commands.h"
 
-void geg_commit(void)
+void geg_commit(const char *message)
 {
-
+    if (message == NULL)
+        message = "Automatic commit by geg";
     GegIndex *index = load_index();
 
     if (!index)
@@ -80,25 +81,32 @@ void geg_commit(void)
 
     char time_str[32];
     sprintf(time_str, "%ld %c%02d%02d", (long)now, sign, hours, mins);
-    char *author = "Geg User <geg@gmail.com>";
-    char *message = "Automatic commit by geg";
 
-    size_t commit_size = 1024 + (parent_id ? 50 : 0);
+    const char *sys_user = getenv("USER");
+    if (!sys_user)
+    {
+        sys_user = "Hornet";
+    }
+
+    char author[256];
+    snprintf(author, sizeof(author), "%s <%s@local>", sys_user, sys_user);
+
+    size_t commit_size = 1024 + (parent_id ? 50 : 0) + strlen(message);
     char *commit_content = malloc(commit_size);
 
-    int content_offset = sprintf(commit_content, "tree %s\n", tree_id);
+    int content_offset = snprintf(commit_content, commit_size, "tree %s\n", tree_id);
 
     if (parent_id)
     {
-        content_offset += sprintf(commit_content + content_offset, "parent %s\n", parent_id);
+        content_offset += snprintf(commit_content + content_offset, commit_size - content_offset, "parent %s\n", parent_id);
     }
 
-    content_offset += sprintf(commit_content + content_offset,
-                      "author %s %s\n"
-                      "committer %s %s\n"
-                      "\n"
-                      "%s\n",
-                      author, time_str, author, time_str, message);
+    content_offset += snprintf(commit_content + content_offset, commit_size - content_offset,
+                               "author %s %s\n"
+                               "committer %s %s\n"
+                               "\n"
+                               "%s\n",
+                               author, time_str, author, time_str, message);
 
     Blob commit_blob;
     commit_blob.data = commit_content;
