@@ -1,4 +1,4 @@
-#include "sha1.h"
+#include "../include/utils/sha1.h"
 
 uint32_t K[4] = {0x5A827999, 0x6ED9EBA1, 0x8F1BBCDC, 0xCA62C1D6};
 

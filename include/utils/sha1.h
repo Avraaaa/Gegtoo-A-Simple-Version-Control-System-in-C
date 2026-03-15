@@ -22,5 +22,6 @@ void sha1_init(Sha1Context *ctx);
 void sha1_update(Sha1Context *ctx, const uint8_t *data, size_t len);
 void sha1_final(Sha1Context *ctx, uint8_t *digest);
 void sha1_hash(const uint8_t *data, size_t len, uint8_t *digest);
+void print_hash(const uint8_t *hash); 
 
 #endif

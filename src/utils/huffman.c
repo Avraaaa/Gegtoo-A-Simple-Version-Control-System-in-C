@@ -1,4 +1,4 @@
-#include "huffman.h"
+#include "../include/utils/huffman.h"
 
 MinHeapNode *new_node(char data, unsigned freq)
 {
@@ -185,7 +185,7 @@ void generate_codes(MinHeapNode *root, char codeArr[], int depth, char **codeTab
 
     if (depth >= MAX_TREE_HT)
     {
-        fprintf(stderr, "Error: Tree depth limit exceeded\n", depth);
+        fprintf(stderr, "Error: Tree depth limit exceeded (depth: %d)\n", depth);
         exit(1);
     }
 
