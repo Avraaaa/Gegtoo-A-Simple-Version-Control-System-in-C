@@ -3,7 +3,17 @@
 
 void geg_checkout(const char *target_id)
 {
+    GegIndex *current_index = load_index();
 
+    if(current_index){
+
+        for(uint32_t i=0;i<current_index->count;i++){
+            remove(current_index->entries[i]->path);
+        }
+        free_index(current_index);
+
+    }
+    remove(".geg/index");
     char obj_path[PATH_MAX];
     snprintf(obj_path, sizeof(obj_path), ".geg/objects/%.2s/%s", target_id, target_id + 2);
 

@@ -31,7 +31,7 @@ void geg_add(int argc, char *argv[])
             // Check if the any of the old files or new files match
             for (int j = 2; j < argc; j++)
             {
-                if (strcmp(old_entry->path,argv[j] == 0)){
+                if (strcmp(old_entry->path,argv[j]) == 0){
                     is_being_updated = 1;
                     break;
                 }
