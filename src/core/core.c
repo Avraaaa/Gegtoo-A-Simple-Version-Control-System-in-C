@@ -20,11 +20,12 @@ void free_entry(Entry *e)
     }
 }
 
-int compare_Index_Entries_by_path(const void *a, const void *b){
+int compare_Index_Entries_by_path(const void *a, const void *b)
+{
 
-    IndexEntry *ea = *(IndexEntry**)a;
-    IndexEntry *eb = *(IndexEntry**)b;
-    return strcmp(ea->path,eb->path);
+    IndexEntry *ea = *(IndexEntry **)a;
+    IndexEntry *eb = *(IndexEntry **)b;
+    return strcmp(ea->path, eb->path);
 }
 
 int compare_entries_by_name(const void *a, const void *b)
@@ -153,7 +154,7 @@ int is_ignored(const char *name)
     {
         return 1;
     }
-    
+
     // if (stat(name, &path_stat) == 0 && S_ISDIR(path_stat.st_mode))
     // {
     //     return 1;
@@ -242,6 +243,71 @@ void database_store(Blob *blob)
     free(full_data);
 }
 
+int resolve_ref(const char *refname, char *hash_out)
+{
+
+    char path[PATH_MAX];
+
+    // Default  is head
+    if (strcmp(refname, "HEAD") == 0)
+    {
+        snprintf(path, sizeof(path), ".geg/HEAD");
+    }
+
+    // Leaves room for a different branch
+    else
+    {
+        snprintf(path, sizeof(path), ".geg/refs/heads/%s", refname);
+    }
+
+    FILE *fp = fopen(path, "r");
+    if (!fp)
+    {
+        return -1;
+    }
+
+    char buffer[1024];
+
+    if (fscanf(fp, "%s", buffer) != 1)
+    {
+        fclose(fp);
+        return -1;
+    }
+
+    // Attached
+    if (strcmp(buffer, "ref:") == 0)
+    {
+        char ref_path[PATH_MAX];
+        fscanf(fp, "%s", ref_path);
+        fclose(fp);
+
+        char full_ref_path[PATH_MAX];
+        snprintf(full_ref_path, sizeof(full_ref_path), ".geg/%s", ref_path);
+
+        FILE *ref_fp = fopen(full_ref_path, "r");
+
+        if (!ref_fp)
+        {
+            return -1;
+        }
+
+        if (fscanf(ref_fp, "%40s", hash_out) != 1)
+        {
+            fclose(ref_fp);
+            return -1;
+        }
+
+        fclose(ref_fp);
+        return 0;
+    }
+    else
+    {
+        strncpy(hash_out, buffer, 41);
+        fclose(fp);
+        return 0;
+    }
+}
+
 int get_head_ref_path(char *ref_path_out)
 {
 
@@ -270,92 +336,128 @@ int get_head_ref_path(char *ref_path_out)
 char *get_parent_commit_id()
 {
 
-    char ref_path[PATH_MAX];
-    if (get_head_ref_path(ref_path) != 0)
-        return NULL;
-
-    FILE *fp = fopen(ref_path, "r");
-    if (!fp)
-        return NULL;
-
     char *commit_id = malloc(41);
-    if (fscanf(fp, "%40s", commit_id) != 1)
+    if (resolve_ref("HEAD", commit_id) == 0)
     {
-
-        free(commit_id);
-        fclose(fp);
-        return NULL;
+        return commit_id;
     }
 
-    fclose(fp);
-    return commit_id;
+    free(commit_id);
+    return NULL;
 }
 
 void update_head_ref(const char *new_commit_id)
 {
+    char head_path[PATH_MAX];
+    snprintf(head_path, sizeof(head_path), ".geg/HEAD");
 
-    char ref_path[PATH_MAX];
-
-    if (get_head_ref_path(ref_path) == 0)
+    FILE *fp = fopen(head_path, "r");
+    if (!fp)
     {
+        perror("Failed to read HEAD");
+        return;
+    }
 
-        FILE *fp = fopen(ref_path, "w");
-        if (fp)
+    char buffer[1024];
+    if (fscanf(fp, "%s", buffer) != 1)
+    {
+        fclose(fp);
+        return;
+    }
+
+    if (strcmp(buffer, "ref:") == 0)
+    {
+        //Attached, update branch file
+        char ref_path[PATH_MAX];
+        fscanf(fp, "%s", ref_path);
+        fclose(fp);
+
+        char full_ref_path[PATH_MAX];
+        snprintf(full_ref_path, sizeof(full_ref_path), ".geg/%s", ref_path);
+
+        FILE *ref_fp = fopen(full_ref_path, "w");
+        if (ref_fp)
         {
-
-            fprintf(fp, "%s\n", new_commit_id);
-            fclose(fp);
+            fprintf(ref_fp, "%s\n", new_commit_id);
+            fclose(ref_fp);
         }
         else
         {
+            perror("Failed to update branch ref");
+        }
+    }
+    else
+    {
+        // WDetached, overwrite raw hash
+        fclose(fp); 
 
-            perror("Failed to update HEAD ref");
+        FILE *head_out = fopen(head_path, "w");
+        if (head_out)
+        {
+            fprintf(head_out, "%s\n", new_commit_id);
+            fclose(head_out);
+        }
+        else
+        {
+            perror("Failed to update detached HEAD");
         }
     }
 }
 
-void explore_directory(const char *base_path, const char *relative_path, char ***file_list, int *count){
+void explore_directory(const char *base_path, const char *relative_path, char ***file_list, int *count)
+{
 
     char current_dir_path[PATH_MAX];
-    //use base path if root, else append relative path
-    if(strlen(relative_path) == 0){
+    // use base path if root, else append relative path
+    if (strlen(relative_path) == 0)
+    {
         snprintf(current_dir_path, sizeof(current_dir_path), "%s", base_path);
     }
-    else{
+    else
+    {
         snprintf(current_dir_path, sizeof(current_dir_path), "%s/%s", base_path, relative_path);
     }
 
     DIR *dir = opendir(current_dir_path);
-    if(!dir) return;
+    if (!dir)
+        return;
 
-    struct dirent *entry;    
-    while((entry = readdir(dir))!=NULL){
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL)
+    {
 
-        if(is_ignored(entry->d_name)) continue;
+        if (is_ignored(entry->d_name))
+            continue;
 
         char new_relative_path[PATH_MAX];
-        //build new relative path
-        if(strlen(relative_path) == 0){
+        // build new relative path
+        if (strlen(relative_path) == 0)
+        {
             snprintf(new_relative_path, sizeof(new_relative_path), "%s", entry->d_name);
         }
-        else{
+        else
+        {
             snprintf(new_relative_path, sizeof(new_relative_path), "%s/%s", relative_path, entry->d_name);
         }
 
         char full_path[PATH_MAX];
-        snprintf(full_path,sizeof(full_path),"%s/%s", base_path, new_relative_path);
+        snprintf(full_path, sizeof(full_path), "%s/%s", base_path, new_relative_path);
 
         struct stat st;
-        if(stat(full_path,&st) == 0){
+        if (stat(full_path, &st) == 0)
+        {
 
-            if(S_ISDIR(st.st_mode)){
-                //If the path is a folder, recursively call it again to explore subdirectories and files
-                explore_directory(base_path,new_relative_path,file_list,count);
+            if (S_ISDIR(st.st_mode))
+            {
+                // If the path is a folder, recursively call it again to explore subdirectories and files
+                explore_directory(base_path, new_relative_path, file_list, count);
             }
 
-            else if(S_ISREG(st.st_mode)){
-                char **temp = realloc(*file_list,sizeof(char *) *(*count+1));
-                if(temp){
+            else if (S_ISREG(st.st_mode))
+            {
+                char **temp = realloc(*file_list, sizeof(char *) * (*count + 1));
+                if (temp)
+                {
                     *file_list = temp;
                     (*file_list)[*count] = strdup(new_relative_path);
                     (*count)++;
@@ -364,14 +466,13 @@ void explore_directory(const char *base_path, const char *relative_path, char **
         }
     }
     closedir(dir);
-    
 }
 
 char **list_workspace_files(const char *root_path, int *count)
 {
     char **file_list = NULL;
     *count = 0;
-    explore_directory(root_path,"",&file_list,count);
+    explore_directory(root_path, "", &file_list, count);
     return file_list;
 }
 
@@ -543,7 +644,6 @@ GegIndex *load_index()
         entry->path = malloc(name_len + 1);
         fread(entry->path, 1, name_len, fp);
         entry->path[name_len] = '\0';
-
 
         int padding = 8 - ((62 + name_len) % 8);
         fseek(fp, padding, SEEK_CUR);

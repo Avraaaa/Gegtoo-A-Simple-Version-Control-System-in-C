@@ -3,29 +3,14 @@
 
 void geg_log(void)
 {
-    char ref_path[PATH_MAX];
-    if (get_head_ref_path(ref_path) != 0)
-    {
-        printf("HEAD not found(not a geg repository?)\n");
-        return;
-    }
-
-    FILE *fp_ref = fopen(ref_path, "r");
-
-    if (!fp_ref)
-    {
-        printf("No Commits yet.\n");
-        return;
-    }
 
     char current_id[41];
-    if (fscanf(fp_ref, "%40s", current_id) != 1)
+
+    if (resolve_ref("HEAD", current_id) != 0)
     {
-        fclose(fp_ref);
+        printf("HEAD not found or no commits yet. :(\n");
         return;
     }
-
-    fclose(fp_ref);
 
     while (1)
     {
