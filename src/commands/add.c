@@ -10,6 +10,36 @@ void geg_add(int argc, char *argv[])
         return;
     }
 
+    char **all_files = NULL;
+    int total_new_files = 0;
+
+    for(int i=2;i<argc;i++){
+
+        struct stat st;
+        if(stat(argv[i],&st)==0){
+
+            //passing '.' as base and argv[i] as relative returns paths like folder/file.c
+            if(S_ISDIR(st.st_mode)){
+                explore_directory(".",argv[i],&all_files,&total_new_files);
+            }
+            else if(S_ISREG(st.st_mode)){
+                //add directory to list, since its a regular file
+                all_files = realloc(all_files,sizeof(char *)*(total_new_files+1));
+                all_files[total_new_files] = strdup(argv[i]);
+                total_new_files++;
+            }
+        }
+        else{
+            printf("Warning: Could not read '%s'\n", argv[i]);   
+        }
+
+    }
+
+    if(total_new_files == 0){
+        printf("Nothing to add.\n");
+        return;
+    }
+
     GegIndex *old_index = load_index();
     uint32_t old_count = 0;
 
@@ -18,7 +48,7 @@ void geg_add(int argc, char *argv[])
         old_count = old_index->count;
     }
 
-    int max_files = old_count + argc - 2;
+    int max_files = old_count + total_new_files;
     IndexEntry **entries = malloc(sizeof(IndexEntry *) * max_files);
     int count = 0;
 
@@ -29,9 +59,9 @@ void geg_add(int argc, char *argv[])
             IndexEntry *old_entry = old_index->entries[i];
             int is_being_updated = 0;
             // Check if the any of the old files or new files match
-            for (int j = 2; j < argc; j++)
+            for (int j = 0; j < total_new_files; j++)
             {
-                if (strcmp(old_entry->path,argv[j]) == 0){
+                if (strcmp(old_entry->path,all_files[j]) == 0){
                     is_being_updated = 1;
                     break;
                 }
@@ -50,11 +80,11 @@ void geg_add(int argc, char *argv[])
         free(old_index);
     }
 
-    for (int i = 2; i < argc; i++)
+    for (int i = 0; i < total_new_files; i++)
     {
 
         size_t size;
-        char *content = read_workspace_files(argv[i], &size);
+        char *content = read_workspace_files(all_files[i], &size);
 
         if (content)
         {
@@ -66,7 +96,7 @@ void geg_add(int argc, char *argv[])
             database_store(&blob);
 
             struct stat st;
-            stat(argv[i], &st);
+            stat(all_files[i], &st);
 
             IndexEntry *entry = malloc(sizeof(IndexEntry));
             entry->ctime_sec = st.st_ctime; // Permission changed time
@@ -80,13 +110,15 @@ void geg_add(int argc, char *argv[])
             entry->gid = st.st_gid; // Group ID
             entry->size = size;
             hex_to_binary(blob.id, entry->sha1);
-            entry->path = strdup(argv[i]);
-            entry->flags = strlen(argv[i]) & 0xFFF;
+            entry->path = strdup(all_files[i]);
+            entry->flags = strlen(all_files[i]) & 0xFFF;
 
             entries[count++] = entry;
             free(content);
         }
+        free(all_files[i]);
     }
+    free(all_files);
 
     qsort(entries, count, sizeof(IndexEntry *), compare_Index_Entries_by_path);
 
