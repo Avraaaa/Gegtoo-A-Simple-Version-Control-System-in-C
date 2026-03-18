@@ -60,9 +60,19 @@ void geg_remove(int argc, char *argv[])
         int to_remove = 0;
 
         for (int j = start_idx; j < argc; j++)
-        {
+        {   
+
+            size_t arg_len = strlen(argv[j]);
+            
+            //If its the exact file
             if (strcmp(ie->path, argv[j]) == 0)
             {
+                to_remove = 1;
+                break;
+            }
+
+            //If its a folder
+            else if(strncmp(ie->path,argv[j],arg_len)==0 && ie->path[arg_len]){
                 to_remove = 1;
                 break;
             }
