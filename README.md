@@ -16,6 +16,7 @@ Built primarily as an academic project to understand how Git works.
   - `commands/` — CLI commands  
   - `utils/` — SHA-1, Huffman  
 - `include/` — headers  
+- `driver/` — test running files  
 - `resources/` — references  
 
 ## Build
