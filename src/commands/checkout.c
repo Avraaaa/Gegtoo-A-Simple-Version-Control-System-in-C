@@ -1,4 +1,22 @@
-#include "../../include/core.h"
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <limits.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <errno.h>
+#include <time.h>
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
+#include "../../include/core/index.h"
+#include "../../include/core/object.h"
+#include "../../include/core/refs.h"
+#include "../../include/utils/huffman.h"
 #include "../../include/commands.h"
 
 void geg_checkout(const char *target_id)

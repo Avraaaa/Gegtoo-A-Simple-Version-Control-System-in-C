@@ -1,4 +1,20 @@
-#include "../include/utils/huffman.h"
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <limits.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <errno.h>
+#include <time.h>
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
+#include "../../include/core/tree.h"
+#include "../../include/utils/huffman.h"
 
 MinHeapNode *new_node(char data, unsigned freq)
 {
@@ -510,7 +526,7 @@ void compress(char *inputFile, char *outputFile)
     free_code_table(codeTable);
     free_huffman_tree(root);
 
-    printf("Compressed %s into %s\n", inputFile, outputFile);
+    //printf("Compressed %s into %s\n", inputFile, outputFile);
 }
 
 
@@ -572,5 +588,5 @@ void decompress(char *inputFile, char *outputFile)
     free(freqData);
     free_huffman_tree(root);
 
-    printf("Decompressed %s into %s\n", inputFile, outputFile);
+    //printf("Decompressed %s into %s\n", inputFile, outputFile);
 }

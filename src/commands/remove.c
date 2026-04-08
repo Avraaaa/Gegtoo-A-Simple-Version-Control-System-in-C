@@ -1,5 +1,23 @@
-#include "../../include/core.h"
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <limits.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <errno.h>
+#include <time.h>
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
+#include "../../include/core/binary.h"
+#include "../../include/core/index.h"
+#include "../../include/utils/sha1.h"
 #include "../../include/commands.h"
+#include "../../include/core/tree.h"
 
 void geg_remove(int argc, char *argv[])
 {
@@ -60,7 +78,7 @@ void geg_remove(int argc, char *argv[])
         int to_remove = 0;
 
         for (int j = start_idx; j < argc; j++)
-        {   
+        { 
 
             size_t arg_len = strlen(argv[j]);
             

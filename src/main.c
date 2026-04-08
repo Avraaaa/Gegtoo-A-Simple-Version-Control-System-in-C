@@ -1,4 +1,18 @@
-#include "../include/core.h"
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <limits.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <errno.h>
+#include <time.h>
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 #include "../include/commands.h"
 
 int main(int argc, char *argv[])
@@ -90,6 +104,11 @@ int main(int argc, char *argv[])
     else if (strcmp(command, "status") == 0)
     {
         geg_status();
+    }
+
+    else if (strcmp(command, "diff") == 0)
+    {
+        geg_diff(argc, argv);
     }
 
     else
