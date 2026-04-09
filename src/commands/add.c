@@ -13,29 +13,52 @@ void geg_add(int argc, char *argv[])
     char **all_files = NULL;
     int total_new_files = 0;
 
-    for(int i=2;i<argc;i++){
+    for (int i = 2; i < argc; i++)
+    {
 
         struct stat st;
-        if(stat(argv[i],&st)==0){
+        if (stat(argv[i], &st) == 0)
+        {
 
-            //passing '.' as base and argv[i] as relative returns paths like folder/file.c
-            if(S_ISDIR(st.st_mode)){
-                explore_directory(".",argv[i],&all_files,&total_new_files);
+            // passing '.' as base and argv[i] as relative returns paths like folder/file.c
+            if (S_ISDIR(st.st_mode))
+            {
+                char *target_path;
+
+                // use empty string if user uses add .
+
+                if (strcmp(argv[i], ".") == 0)
+
+                {
+
+                    target_path = "";
+                }
+
+                else
+
+                {
+
+                    target_path = argv[i];
+                }
+
+                explore_directory(".", target_path, &all_files, &total_new_files);
             }
-            else if(S_ISREG(st.st_mode)){
-                //add directory to list, since its a regular file
-                all_files = realloc(all_files,sizeof(char *)*(total_new_files+1));
+            else if (S_ISREG(st.st_mode))
+            {
+                // add directory to list, since its a regular file
+                all_files = realloc(all_files, sizeof(char *) * (total_new_files + 1));
                 all_files[total_new_files] = strdup(argv[i]);
                 total_new_files++;
             }
         }
-        else{
-            printf("Warning: Could not read '%s'\n", argv[i]);   
+        else
+        {
+            printf("Warning: Could not read '%s'\n", argv[i]);
         }
-
     }
 
-    if(total_new_files == 0){
+    if (total_new_files == 0)
+    {
         printf("Nothing to add.\n");
         return;
     }
@@ -61,18 +84,21 @@ void geg_add(int argc, char *argv[])
             // Check if the any of the old files or new files match
             for (int j = 0; j < total_new_files; j++)
             {
-                if (strcmp(old_entry->path,all_files[j]) == 0){
+                if (strcmp(old_entry->path, all_files[j]) == 0)
+                {
                     is_being_updated = 1;
                     break;
                 }
             }
-            //check if any old file was updated
-            if(is_being_updated){
+            // check if any old file was updated
+            if (is_being_updated)
+            {
                 free(old_entry->path);
                 free(old_entry);
             }
 
-            else{
+            else
+            {
                 entries[count++] = old_entry;
             }
         }
