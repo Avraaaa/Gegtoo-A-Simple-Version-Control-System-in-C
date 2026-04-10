@@ -13,7 +13,7 @@ https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1176/assnFiles/assign6/h
 Makefile
 https://opensource.com/article/18/8/what-how-makefile
 
-Git Index
+Geg Index
 https://mincong.io/2018/04/28/git-index/
 https://git-scm.com/docs/index-format
 
@@ -32,4 +32,9 @@ https://en.wikibooks.org/wiki/C_Programming/POSIX_Reference/dirent.h
 
 Endianness:
 https://embetronicx.com/tutorials/p_language/c/little-endian-and-big-endian/
+
+Diff:
+
+https://docs.moonbitlang.com/en/latest/example/myers-diff/myers-diff.html
+https://blog.jcoglan.com/2017/02/12/the-myers-diff-algorithm-part-1/
 
