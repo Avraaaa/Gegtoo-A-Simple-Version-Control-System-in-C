@@ -80,7 +80,6 @@ int resolve_ref(const char *refname, char *hash_out)
     }
 }
 
-
 int get_head_ref_path(char *ref_path_out)
 {
 
@@ -106,7 +105,6 @@ int get_head_ref_path(char *ref_path_out)
     return 0;
 }
 
-
 char *get_parent_commit_id()
 {
 
@@ -119,7 +117,6 @@ char *get_parent_commit_id()
     free(commit_id);
     return NULL;
 }
-
 
 void update_head_ref(const char *new_commit_id)
 {
@@ -142,7 +139,7 @@ void update_head_ref(const char *new_commit_id)
 
     if (strcmp(buffer, "ref:") == 0)
     {
-        //Attached, update branch file
+        // Attached, update branch file
         char ref_path[PATH_MAX];
         fscanf(fp, "%s", ref_path);
         fclose(fp);
@@ -164,7 +161,7 @@ void update_head_ref(const char *new_commit_id)
     else
     {
         // WDetached, overwrite raw hash
-        fclose(fp); 
+        fclose(fp);
 
         FILE *head_out = fopen(head_path, "w");
         if (head_out)
@@ -179,4 +176,42 @@ void update_head_ref(const char *new_commit_id)
     }
 }
 
+void get_current_branch(char *branch_out)
+{
 
+    char head_path[PATH_MAX];
+    snprintf(head_path, sizeof(head_path), ".geg/HEAD");
+    FILE *fp = fopen(head_path, "r");
+    if (!fp)
+        return;
+
+    char buffer[1024];
+    if (fscanf(fp, "ref: refs/heads/%s", buffer) == 1)
+    {
+        strcpy(branch_out, buffer);
+    }
+    else
+    {
+        strcpy(branch_out, "HEAD (detached)");
+    }
+
+    fclose(fp);
+}
+
+int is_valid_branch_name(const char *name)
+{
+    if (name == NULL || strlen(name) == 0)
+        return 0;
+
+    // Cannot start with a dot
+    if (name[0] == '.')
+        return 0;
+
+    // Preventing directory traversal or multi-word branches
+    if (strchr(name, '/') || strchr(name, '\\') || strchr(name, ' '))
+        return 0;
+    if (strstr(name, ".."))
+        return 0;
+
+    return 1;
+}

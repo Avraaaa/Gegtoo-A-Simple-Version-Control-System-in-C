@@ -110,7 +110,10 @@ int main(int argc, char *argv[])
     {
         geg_diff(argc, argv);
     }
-
+    else if (strcmp(command, "branch") == 0)
+    {
+        geg_branch(argc, argv);
+    }
     else
     {
         printf("geg: '%s' is not a geg command.\n", command);

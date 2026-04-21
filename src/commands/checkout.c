@@ -37,13 +37,15 @@ void geg_checkout(const char *target_id)
     }
 
     GegIndex *current_index = load_index();
-
     if (current_index)
     {
-
         for (uint32_t i = 0; i < current_index->count; i++)
         {
-            remove(current_index->entries[i]->path);
+            if (strcmp(current_index->entries[i]->path, "geg") != 0 &&
+                strcmp(current_index->entries[i]->path, "./geg") != 0)
+            {
+                remove(current_index->entries[i]->path);
+            }
         }
         free_index(current_index);
     }
@@ -102,7 +104,8 @@ void geg_checkout(const char *target_id)
             fprintf(head, "ref: refs/heads/%s\n", target_id);
             printf("Switched to branch '%s'\n", target_id);
         }
-        else{
+        else
+        {
             fprintf(head, "%s\n", commit_id);
             printf("Note: checking out '%s'.\nYou are in 'detached HEAD' state.\n", commit_id);
         }

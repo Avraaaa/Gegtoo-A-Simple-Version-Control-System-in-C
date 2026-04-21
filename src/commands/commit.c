@@ -133,7 +133,7 @@ void geg_commit(const char *message)
 
     database_store(&commit_blob);
 
-    printf("[%s%s] %s\n", commit_blob.id, parent_id ? "" : " (root-commit)", message);
+    printf("%s%s %s\n", commit_blob.id, parent_id ? "" : " (root-commit)", message);
 
     update_head_ref(commit_blob.id);
 
