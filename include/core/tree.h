@@ -43,5 +43,6 @@ int compare_entries_by_name(const void *a, const void *b);
 unsigned char *serialize_tree(Tree *tree, size_t *out_size);
 void get_commit_tree(const char *commit_id, char *tree_id_out);
 void load_tree_entries(const char *tree_id, const char *base_path, HeadTree *head_tree);
+void read_commit_parents(const char *commit_id, char parents[2][41], int *count);
 
 #endif

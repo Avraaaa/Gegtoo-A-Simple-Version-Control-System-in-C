@@ -227,3 +227,54 @@ void load_tree_entries(const char *tree_id, const char *base_path, HeadTree *hea
 }
 
 
+void read_commit_parents(const char *commit_id, char parents[2][41], int *count)
+{
+    char obj_path[PATH_MAX];
+    char temp_path[PATH_MAX];
+    snprintf(obj_path,  sizeof(obj_path),  ".geg/objects/%.2s/%s", commit_id, commit_id + 2);
+    snprintf(temp_path, sizeof(temp_path), ".geg/temp_par_%s", commit_id);
+
+    *count = 0;
+    
+    if (access(obj_path, F_OK) == -1)
+    {
+        return;
+    }
+
+    decompress(obj_path, temp_path);
+    FILE *fp = fopen(temp_path, "rb");
+    
+    if (!fp)
+    {
+        return;
+    }
+
+    char type[10];
+    size_t size;
+    
+    if (fscanf(fp, "%s %zu", type, &size) != 2 || strcmp(type, "commit") != 0)
+    {
+        fclose(fp);
+        remove(temp_path);
+        return;
+    }
+    
+    fgetc(fp);
+
+    char line[1024];
+    
+    while (fgets(line, sizeof(line), fp))
+    {
+        if (line[0] == '\n')
+        {
+            break;
+        }
+        if (strncmp(line, "parent ", 7) == 0 && *count < 2)
+        {
+            sscanf(line, "parent %40s", parents[(*count)++]);
+        }
+    }
+    
+    fclose(fp);
+    remove(temp_path);
+}

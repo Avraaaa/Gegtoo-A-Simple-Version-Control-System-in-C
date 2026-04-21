@@ -22,4 +22,6 @@ typedef struct {
 
 void diff_file(const char* filepath, const unsigned char* old_sha1);
 
+void compute_myers_match(char** A, int N, char** B, int M, int* match);
+
 #endif
