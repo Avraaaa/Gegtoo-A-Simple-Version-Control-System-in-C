@@ -12,4 +12,5 @@ void geg_checkout(int argc, char *argv[]);
 void geg_diff(int argc, char *argv[]);
 void geg_branch(int argc, char *argv[]);
 void geg_tag(int argc, char *argv[]);
+
 #endif

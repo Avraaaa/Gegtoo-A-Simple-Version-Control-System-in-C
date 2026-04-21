@@ -15,6 +15,7 @@
 
 #include "../../include/core/binary.h"
 #include "../../include/core/index.h"
+#include "../../include/utils/sha1.h"
 
 int compare_Index_Entries_by_path(const void *a, const void *b)
 {
@@ -98,3 +99,56 @@ void free_index(GegIndex *index)
 }
 
 
+void write_index(IndexEntry **entries, int count) {
+    FILE *index_file = fopen(".geg/index", "wb");
+    if (!index_file) { perror("fopen"); return; }
+
+    size_t capacity = 4096;
+    unsigned char *full_data = malloc(capacity);
+    size_t offset = 0;
+
+    unsigned char header[12];
+    memcpy(header, "DIRC", 4);
+    pack32_be(2, header + 4);
+    pack32_be(count, header + 8);
+    memcpy(full_data + offset, header, 12);
+    offset += 12;
+
+    for (int i = 0; i < count; i++) {
+        IndexEntry *e = entries[i];
+        unsigned char entry_buf[62];
+        pack32_be(e->ctime_sec,  entry_buf);
+        pack32_be(e->ctime_nsec, entry_buf + 4);
+        pack32_be(e->mtime_sec,  entry_buf + 8);
+        pack32_be(e->mtime_nsec, entry_buf + 12);
+        pack32_be(e->dev,        entry_buf + 16);
+        pack32_be(e->ino,        entry_buf + 20);
+        pack32_be(e->mode,       entry_buf + 24);
+        pack32_be(e->uid,        entry_buf + 28);
+        pack32_be(e->gid,        entry_buf + 32);
+        pack32_be(e->size,       entry_buf + 36);
+        memcpy(entry_buf + 40, e->sha1, 20);
+        pack16_be(e->flags, entry_buf + 60);
+
+        unsigned int name_len = strlen(e->path);
+        if (offset + 62 + name_len + 8 + 20 > capacity) {
+            capacity *= 2;
+            full_data = realloc(full_data, capacity);
+        }
+        memcpy(full_data + offset, entry_buf, 62);  offset += 62;
+        memcpy(full_data + offset, e->path, name_len); offset += name_len;
+
+        int padding = 8 - ((62 + name_len) % 8);
+        memset(full_data + offset, 0, padding);
+        offset += padding;
+    }
+
+    unsigned char index_sha[20];
+    sha1_hash(full_data, offset, index_sha);
+    memcpy(full_data + offset, index_sha, 20);
+    offset += 20;
+
+    fwrite(full_data, 1, offset, index_file);
+    fclose(index_file);
+    free(full_data);
+}

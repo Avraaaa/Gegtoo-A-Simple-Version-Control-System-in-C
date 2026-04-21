@@ -26,5 +26,6 @@ typedef struct {
 void database_store(Blob *blob);
 void restore_blob(const char *path, const char *id);
 void restore_tree(const char *tree_id, const char *base_path);
+char *geg_blob_content(const char *blob_id, size_t *size_out);
 
 #endif

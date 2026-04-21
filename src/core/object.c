@@ -192,3 +192,34 @@ void restore_tree(const char *tree_id, const char *base_path)
 }
 
 
+char *geg_blob_content(const char *blob_id, size_t *size_out){
+    char obj_path[PATH_MAX], temp_path[PATH_MAX];
+    snprintf(obj_path,sizeof(obj_path),".geg/objects/%.2s/%s",blob_id,blob_id+2);
+    snprintf(temp_path,sizeof(temp_path),".geg/temp_blob_%s",blob_id);
+
+    *size_out = 0;
+    if(access(obj_path,F_OK)==-1) return NULL;
+
+    decompress(obj_path,temp_path);
+    FILE *fp = fopen(temp_path,"rb");
+    if(!fp) return NULL;
+
+    char type[10];
+    size_t size;
+    if(fscanf(fp,"%s %zu",type,&size)!=2){
+        fclose(fp);
+        remove(temp_path);
+        return NULL;
+    }
+    fgetc(fp);//for consuming the null byte
+
+    char *content = malloc(size+1);
+    if(size>0) fread(content,1,size,fp);
+    content[size] = '\0';//Null terminator
+
+    fclose(fp);
+    remove(temp_path);
+
+    *size_out = size;
+    return content;
+}

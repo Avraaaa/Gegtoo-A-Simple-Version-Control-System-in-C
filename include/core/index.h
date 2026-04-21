@@ -40,5 +40,6 @@ typedef struct {
 int compare_Index_Entries_by_path(const void *a, const void *b);
 GegIndex *load_index();
 void free_index(GegIndex *index);
+void write_index(IndexEntry **entries, int count);
 
 #endif
