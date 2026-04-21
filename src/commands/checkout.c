@@ -19,8 +19,64 @@
 #include "../../include/utils/huffman.h"
 #include "../../include/commands.h"
 
-void geg_checkout(const char *target_id)
+void geg_checkout(int argc, char *argv[])
 {
+    if (argc < 3)
+    {
+        printf("Usage: ./geg checkout [-b] <target>\n");
+        return;
+    }
+
+    const char *target_id = argv[2];
+
+    // Handle the -b flag for inline branch creation
+    if (strcmp(argv[2], "-b") == 0)
+    {
+        if (argc < 4)
+        {
+            printf("error: switch 'b' requires a value\n");
+            return;
+        }
+        
+        target_id = argv[3];
+
+        if (!is_valid_ref_name(target_id))
+        {
+            printf("fatal: '%s' is not a valid branch name.\n", target_id);
+            return;
+        }
+
+        char *current_commit = get_parent_commit_id();
+        if (!current_commit)
+        {
+            printf("fatal: Not a valid object name: 'master'. (Do you need to make your first commit?)\n");
+            return;
+        }
+
+        char branch_path[PATH_MAX];
+        snprintf(branch_path, sizeof(branch_path), ".geg/refs/heads/%s", target_id);
+
+        if (access(branch_path, F_OK) != -1)
+        {
+            printf("fatal: A branch named '%s' already exists.\n", target_id);
+            free(current_commit);
+            return;
+        }
+
+        FILE *fp = fopen(branch_path, "w");
+        if (fp)
+        {
+            fprintf(fp, "%s\n", current_commit);
+            fclose(fp);
+        }
+        else
+        {
+            perror("Failed to create branch");
+            free(current_commit);
+            return;
+        }
+        free(current_commit);
+    }
 
     char commit_id[41];
     int is_branch = 0;

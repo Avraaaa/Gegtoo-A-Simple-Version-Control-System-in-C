@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
     }
 
     const char *command = argv[1];
-    
+
     if (strcmp(command, "init") == 0)
     {
         if (argc == 3)
@@ -85,10 +85,7 @@ int main(int argc, char *argv[])
     }
     else if (strcmp(command, "checkout") == 0)
     {
-        if (argc < 3)
-            printf("Usage: ./geg checkout <commit_id>\n");
-        else
-            geg_checkout(argv[2]);
+        geg_checkout(argc, argv);
     }
     else if (strcmp(command, "rm") == 0 || strcmp(command, "remove") == 0)
     {
