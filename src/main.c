@@ -107,6 +107,11 @@ int main(int argc, char *argv[])
     {
         geg_tag(argc, argv);
     }
+    else if (strcmp(command, "merge") == 0)
+    {
+        geg_merge(argc, argv);
+    }
+
     else
     {
         printf("geg: '%s' is not a geg command.\n", command);
