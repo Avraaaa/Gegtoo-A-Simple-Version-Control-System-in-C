@@ -21,7 +21,7 @@ int get_head_ref_path(char *ref_path_out);
 char *get_parent_commit_id();
 void update_head_ref(const char *new_commit_id);
 void get_current_branch(char *branch_out);
-int is_valid_branch_name(const char *name);
+int is_valid_ref_name(const char *name);
 
 
 #endif

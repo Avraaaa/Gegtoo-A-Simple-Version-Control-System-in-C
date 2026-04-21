@@ -55,16 +55,19 @@ void geg_init(const char *path)
     char objects[PATH_MAX];
     char refs[PATH_MAX];
     char heads[PATH_MAX];
+    char tags[PATH_MAX];
 
     snprintf(objects, sizeof(objects), "%s/objects", buffer);
     snprintf(refs, sizeof(refs), "%s/refs", buffer);
     snprintf(heads, sizeof(heads), "%s/refs/heads", buffer);
+    snprintf(tags, sizeof(tags), "%s/refs/tags", buffer);
 
     create_directory(buffer);
     create_directory(objects);
     create_directory(refs);
     create_directory(heads);
-
+    create_directory(tags);
+    
     char head_path[PATH_MAX];
     snprintf(head_path, sizeof(head_path), "%s/HEAD", buffer);
     FILE *head_file = fopen(head_path, "w");

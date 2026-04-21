@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
     }
 
     const char *command = argv[1];
-
+    
     if (strcmp(command, "init") == 0)
     {
         if (argc == 3)
@@ -43,12 +43,10 @@ int main(int argc, char *argv[])
             geg_init(NULL);
         }
     }
-
     else if (strcmp(command, "add") == 0)
     {
         geg_add(argc, argv);
     }
-
     else if (strcmp(command, "commit") == 0)
     {
         if (argc == 4 && strcmp(argv[2], "-m") == 0)
@@ -70,7 +68,6 @@ int main(int argc, char *argv[])
             printf("Usage: ./geg commit [-m <message>]\n");
         }
     }
-
     else if (strcmp(command, "cat") == 0)
     {
         if (argc < 3)
@@ -82,12 +79,10 @@ int main(int argc, char *argv[])
             geg_cat(argv[2]);
         }
     }
-
     else if (strcmp(command, "log") == 0)
     {
         geg_log();
     }
-
     else if (strcmp(command, "checkout") == 0)
     {
         if (argc < 3)
@@ -95,17 +90,14 @@ int main(int argc, char *argv[])
         else
             geg_checkout(argv[2]);
     }
-
     else if (strcmp(command, "rm") == 0 || strcmp(command, "remove") == 0)
     {
         geg_remove(argc, argv);
     }
-
     else if (strcmp(command, "status") == 0)
     {
         geg_status();
     }
-
     else if (strcmp(command, "diff") == 0)
     {
         geg_diff(argc, argv);
@@ -113,6 +105,10 @@ int main(int argc, char *argv[])
     else if (strcmp(command, "branch") == 0)
     {
         geg_branch(argc, argv);
+    }
+    else if (strcmp(command, "tag") == 0)
+    {
+        geg_tag(argc, argv);
     }
     else
     {

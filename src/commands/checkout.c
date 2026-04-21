@@ -25,11 +25,17 @@ void geg_checkout(const char *target_id)
     char commit_id[41];
     int is_branch = 0;
 
+    // Resolving target to a commit hash and check if it's a branch
     if (resolve_ref(target_id, commit_id) == 0)
     {
-        is_branch = 1;
+        char branch_path[PATH_MAX];
+        snprintf(branch_path, sizeof(branch_path), ".geg/refs/heads/%s", target_id);
+        
+        if (access(branch_path, F_OK) == 0) 
+        {
+            is_branch = 1;
+        }
     }
-
     else
     {
         strncpy(commit_id, target_id, 40);
@@ -37,12 +43,14 @@ void geg_checkout(const char *target_id)
     }
 
     GegIndex *current_index = load_index();
+
     if (current_index)
     {
+        // Removing existing tracked files, protecting the geg binary
         for (uint32_t i = 0; i < current_index->count; i++)
         {
-            if (strcmp(current_index->entries[i]->path, "geg") != 0 &&
-                strcmp(current_index->entries[i]->path, "./geg") != 0)
+            if (strcmp(current_index->entries[i]->path, "geg") != 0 && 
+                strcmp(current_index->entries[i]->path, "./geg") != 0) 
             {
                 remove(current_index->entries[i]->path);
             }
@@ -93,19 +101,19 @@ void geg_checkout(const char *target_id)
     }
 
     printf("Checking out commit %s (tree %s)...\n", commit_id, tree_id);
-    restore_tree(tree_id, "");
+    restore_tree(tree_id, ""); // Restore files from the tree object
 
     FILE *head = fopen(".geg/HEAD", "w");
 
     if (head)
     {
+        // Update HEAD: use symbolic ref for branches, raw hash for tags/commits
         if (is_branch && strcmp(target_id, "HEAD") != 0)
         {
             fprintf(head, "ref: refs/heads/%s\n", target_id);
             printf("Switched to branch '%s'\n", target_id);
         }
-        else
-        {
+        else{
             fprintf(head, "%s\n", commit_id);
             printf("Note: checking out '%s'.\nYou are in 'detached HEAD' state.\n", commit_id);
         }

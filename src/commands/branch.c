@@ -60,7 +60,7 @@ void geg_branch(int argc, char *argv[])
         const char *target_branch = argv[3];
 
         // Validating branch name before trying to delete
-        if (!is_valid_branch_name(target_branch))
+        if (!is_valid_ref_name(target_branch))
         {
             printf("error: '%s' is not a valid branch name.\n", target_branch);
             return;
@@ -95,7 +95,7 @@ void geg_branch(int argc, char *argv[])
         const char *new_branch = argv[2];
 
         // 3b. Validate branch name before trying to create it
-        if (!is_valid_branch_name(new_branch))
+        if (!is_valid_ref_name(new_branch))
         {
             printf("fatal: '%s' is not a valid branch name.\n", new_branch);
             return;

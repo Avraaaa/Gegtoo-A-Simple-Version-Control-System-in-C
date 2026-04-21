@@ -17,19 +17,23 @@
 
 int resolve_ref(const char *refname, char *hash_out)
 {
-
     char path[PATH_MAX];
 
-    // Default  is head
+    // Default is HEAD
     if (strcmp(refname, "HEAD") == 0)
     {
         snprintf(path, sizeof(path), ".geg/HEAD");
     }
-
-    // Leaves room for a different branch
     else
     {
+        // See if is a branch first
         snprintf(path, sizeof(path), ".geg/refs/heads/%s", refname);
+
+        // If its not a branch, then check if its a tag
+        if (access(path, F_OK) == -1)
+        {
+            snprintf(path, sizeof(path), ".geg/refs/tags/%s", refname);
+        }
     }
 
     FILE *fp = fopen(path, "r");
@@ -198,7 +202,7 @@ void get_current_branch(char *branch_out)
     fclose(fp);
 }
 
-int is_valid_branch_name(const char *name)
+int is_valid_ref_name(const char *name)
 {
     if (name == NULL || strlen(name) == 0)
         return 0;
