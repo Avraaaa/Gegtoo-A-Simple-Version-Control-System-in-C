@@ -22,6 +22,7 @@
 #include "../../include/core/fs.h"
 #include "../../include/utils/sha1.h"
 
+
 // Find specific file path within parsed tree
 static HeadEntry *find_entry(HeadTree *tree, const char *path)
 {
@@ -174,7 +175,6 @@ void geg_merge(int argc, char *argv[])
     }
     const char *branch = argv[2];
 
-    // resolve the commit ids
     char their_commit[41] = {0};
     if (resolve_ref(branch, their_commit) != 0)
     {
@@ -303,7 +303,7 @@ void geg_merge(int argc, char *argv[])
         if (oe && !te && !be)
         {
             size_t sz = 0;
-            char *content = get_blob_content(our_sha, &sz);
+            char *content = geg_blob_content(our_sha, &sz);
             if (content)
             {
                 IndexEntry *ie = store_and_index(path, content, sz);
@@ -318,7 +318,7 @@ void geg_merge(int argc, char *argv[])
         if (te && !oe && !be)
         {
             size_t sz = 0;
-            char *content = get_blob_content(their_sha, &sz);
+            char *content = geg_blob_content(their_sha, &sz);
             if (content)
             {
                 IndexEntry *ie = store_and_index(path, content, sz);
@@ -335,7 +335,7 @@ void geg_merge(int argc, char *argv[])
             if (memcmp(oe->sha1, te->sha1, 20) == 0)
             {
                 size_t sz = 0;
-                char *content = get_blob_content(our_sha, &sz);
+                char *content = geg_blob_content(our_sha, &sz);
                 if (content)
                 {
                     IndexEntry *ie = store_and_index(path, content, sz);
@@ -349,8 +349,8 @@ void geg_merge(int argc, char *argv[])
             else
             {
                 size_t osz = 0, tsz = 0;
-                char *oc = get_blob_content(our_sha, &osz);
-                char *tc = get_blob_content(their_sha, &tsz);
+                char *oc = geg_blob_content(our_sha, &osz);
+                char *tc = geg_blob_content(their_sha, &tsz);
                 char *merged = NULL;
                 size_t msz = 0;
 
@@ -393,7 +393,7 @@ void geg_merge(int argc, char *argv[])
                 printf("CONFLICT (modify/delete): %s deleted in target, modified in HEAD\n", path);
                 conflicts++;
                 size_t sz = 0;
-                char *content = get_blob_content(our_sha, &sz);
+                char *content = geg_blob_content(our_sha, &sz);
                 if (content)
                 {
                     IndexEntry *ie = store_and_index(path, content, sz);
@@ -417,7 +417,7 @@ void geg_merge(int argc, char *argv[])
                 printf("CONFLICT (delete/modify): %s deleted in HEAD, modified in target\n", path);
                 conflicts++;
                 size_t sz = 0;
-                char *content = get_blob_content(their_sha, &sz);
+                char *content = geg_blob_content(their_sha, &sz);
                 if (content)
                 {
                     IndexEntry *ie = store_and_index(path, content, sz);
@@ -435,7 +435,7 @@ void geg_merge(int argc, char *argv[])
             if (memcmp(oe->sha1, te->sha1, 20) == 0)
             {
                 size_t sz = 0;
-                char *content = get_blob_content(our_sha, &sz);
+                char *content = geg_blob_content(our_sha, &sz);
                 if (content)
                 {
                     IndexEntry *ie = store_and_index(path, content, sz);
@@ -447,9 +447,9 @@ void geg_merge(int argc, char *argv[])
             }
 
             size_t bsz = 0, osz = 0, tsz = 0;
-            char *bc = get_blob_content(base_sha, &bsz);
-            char *oc = get_blob_content(our_sha, &osz);
-            char *tc = get_blob_content(their_sha, &tsz);
+            char *bc = geg_blob_content(base_sha, &bsz);
+            char *oc = geg_blob_content(our_sha, &osz);
+            char *tc = geg_blob_content(their_sha, &tsz);
 
             char *merged = NULL;
             size_t msz = 0;

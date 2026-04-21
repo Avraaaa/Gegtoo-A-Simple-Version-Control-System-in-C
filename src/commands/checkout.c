@@ -16,6 +16,7 @@
 #include "../../include/core/index.h"
 #include "../../include/core/object.h"
 #include "../../include/core/refs.h"
+#include "../../include/core/tree.h"
 #include "../../include/utils/huffman.h"
 #include "../../include/commands.h"
 
@@ -157,7 +158,53 @@ void geg_checkout(int argc, char *argv[])
     }
 
     printf("Checking out commit %s (tree %s)...\n", commit_id, tree_id);
-    restore_tree(tree_id, ""); // Restore files from the tree object
+    restore_tree(tree_id, "");
+
+    HeadTree ht = {NULL, 0, 0};
+    load_tree_entries(tree_id, "", &ht);
+
+    IndexEntry **entries = malloc(sizeof(IndexEntry *) * ht.count);
+    int entry_count = 0;
+
+    for (size_t i = 0; i < ht.count; i++)
+    {
+        HeadEntry *he = ht.entries[i];
+        struct stat st;
+        if (stat(he->path, &st) != 0)
+        {
+            free(he->path);
+            free(he);
+            continue;
+        }
+        IndexEntry *ie = malloc(sizeof(IndexEntry));
+        ie->ctime_sec = (uint32_t)st.st_ctime;
+        ie->ctime_nsec = 0;
+        ie->mtime_sec = (uint32_t)st.st_mtime;
+        ie->mtime_nsec = 0;
+        ie->dev = st.st_dev;
+        ie->ino = st.st_ino;
+        ie->mode = st.st_mode;
+        ie->uid = st.st_uid;
+        ie->gid = st.st_gid;
+        ie->size = (uint32_t)st.st_size;
+        memcpy(ie->sha1, he->sha1, 20);
+        ie->path = strdup(he->path);
+        ie->flags = strlen(he->path) & 0xFFF;
+        entries[entry_count++] = ie;
+        free(he->path);
+        free(he);
+    }
+    free(ht.entries);
+
+    qsort(entries, entry_count, sizeof(IndexEntry *), compare_Index_Entries_by_path);
+    write_index(entries, entry_count);
+
+    for (int i = 0; i < entry_count; i++)
+    {
+        free(entries[i]->path);
+        free(entries[i]);
+    }
+    free(entries);
 
     FILE *head = fopen(".geg/HEAD", "w");
 

@@ -139,7 +139,7 @@ void geg_remove(int argc, char *argv[])
 
         kept_count++;
     }
-
+    
     pack32_be(kept_count, full_data + 8);
 
     unsigned char index_sha[20];

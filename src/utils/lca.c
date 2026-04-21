@@ -47,8 +47,8 @@ static void idset_add(IdSet *s, const char *id){
     if(s->count>=s->cap){
         s->cap*=2;
         s->ids = realloc(s->ids,s->cap*sizeof(char *));
-        s->ids[s->count++] = strdup(id);
     }
+    s->ids[s->count++] = strdup(id);
 }
 
 static void idset_free(IdSet *s) {
@@ -128,7 +128,7 @@ int find_merge_base(const char *commit_a, const char *commit_b, char base_out[41
         if(!idset_has(&visited,cur)){
             idset_add(&visited,cur);
             if(idset_has(&anc_a,cur)){
-                strncpu(base_out,cur,41);
+                strncpy(base_out,cur,41);
                 found = 1;
             }else{
                 char parents[2][41];
@@ -165,10 +165,10 @@ static char **split_into_lines(const char *text, size_t len, int *count_out){
     int idx = 0;
     size_t start = 0;
     for(size_t i=0;i<=len;i++){
-        if(i==len || text=='\n'){
+        if(i==len || text[i]=='\n'){
             size_t l = i-start;
             lines[idx] = malloc(l+2);
-            memcpu(lines[idx],text+start,l);
+            memcpy(lines[idx],text+start,l);
             if(i<len){
                 lines[idx][l] = '\n';
                 lines[idx][l+1] = '\0';
