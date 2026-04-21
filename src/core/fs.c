@@ -62,7 +62,7 @@ int is_ignored(const char *name)
 
     struct stat path_stat;
 
-    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0 || strcmp(name, ".geg") == 0 || strcmp(name, ".git") == 0)
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0 || strcmp(name, ".geg") == 0 || strcmp(name, ".git") == 0 || strcmp(name, "geg") == 0)  
     {
         return 1;
     }
