@@ -16,7 +16,7 @@ Built primarily as an academic project to understand how Git works.
   - `commands/` — CLI commands  
   - `utils/` — SHA-1, Huffman  
 - `include/` — headers  
-- `driver/` — test running files  
+- `test_codes/` — test running files  
 - `resources/` — references  
 
 ## Build
@@ -49,8 +49,14 @@ After building, the `geg` executable will be located in your `build/` directory 
 
 ./geg cat <hash>
 
+./geg diff
+./geg diff <file_path>
+
 ./geg checkout <commit_hash>
 ./geg checkout <branch_name>
+./geg checkout -b <branch_name>
+
+./geg merge <branch_name>
 
 ./geg remove <file_path>
 ./geg remove <file_path1> <file_path2>
