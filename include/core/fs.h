@@ -17,6 +17,7 @@
 #endif
 
 void create_directory(const char *path);
+int write_file(const char *path, const char *content, size_t len);
 void explore_directory(const char *base_path, const char *relative_path, char ***file_list, int *count);
 int is_ignored(const char *name);
 char *read_workspace_files(const char *path, size_t *out_size);

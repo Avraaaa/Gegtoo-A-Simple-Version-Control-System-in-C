@@ -15,6 +15,27 @@
 
 #include "../../include/core/fs.h"
 
+int write_file(const char *path, const char *content, size_t len)
+{
+    char dir[PATH_MAX];
+    snprintf(dir, sizeof(dir), "%s", path);
+    char *slash = strrchr(dir, '/');
+    if (slash)
+    {
+        *slash = '\0';
+        create_directory(dir);
+    }
+
+    FILE *fp = fopen(path, "wb");
+    if (!fp)
+        return -1;
+    fwrite(content, 1, len, fp);
+    fclose(fp);
+
+    chmod(path, 0644); // Ensure files are readable/writable after creation
+    return 0;
+}
+
 void create_directory(const char *path)
 {
 

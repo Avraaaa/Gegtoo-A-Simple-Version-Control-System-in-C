@@ -15,6 +15,8 @@
 
 #include "../../include/core/binary.h"
 #include "../../include/core/tree.h"
+#include "../../include/core/index.h"
+#include "../../include/core/object.h"
 #include "../../include/utils/huffman.h"
 
 Entry *new_entry(char *name, char *id)
@@ -277,4 +279,93 @@ void read_commit_parents(const char *commit_id, char parents[2][41], int *count)
     
     fclose(fp);
     remove(temp_path);
+}
+
+
+// Find specific file path within parsed tree
+HeadEntry *find_entry(HeadTree *tree, const char *path)
+{
+    for (size_t i = 0; i < tree->count; i++)
+        if (strcmp(tree->entries[i]->path, path) == 0)
+            return tree->entries[i];
+    return NULL;
+}
+
+// Collect a unique list of all file paths present across 'Base', 'Ours' and 'Theirs'
+char **collect_paths(HeadTree *base, HeadTree *ours, HeadTree *theirs, int *count_out)
+{
+    int cap = 64, count = 0;
+    char **paths = malloc(cap * sizeof(char *));
+
+    HeadTree *trees[3] = {base, ours, theirs};
+    for (int t = 0; t < 3; t++)
+    {
+        for (size_t i = 0; i < trees[t]->count; i++)
+        {
+            const char *p = trees[t]->entries[i]->path;
+            int dup = 0;
+            for (int j = 0; j < count; j++)
+                if (strcmp(paths[j], p) == 0)
+                {
+                    dup = 1;
+                    break;
+                }
+            if (dup)
+                continue;
+
+            if (count >= cap)
+            {
+                cap *= 2;
+                paths = realloc(paths, cap * sizeof(char *));
+            }
+            paths[count++] = strdup(p);
+        }
+    }
+    *count_out = count;
+    return paths;
+}
+
+// Serializes the current .geg/index into a tree object and returns its SHA1
+void build_and_store_tree(char tree_id_out[41])
+{
+    GegIndex *idx = load_index();
+    if (!idx)
+    {
+        tree_id_out[0] = '\0';
+        return;
+    }
+
+    Tree tree;
+    tree.count = idx->count;
+    tree.entries = malloc(sizeof(Entry *) * tree.count);
+    for (uint32_t i = 0; i < idx->count; i++)
+    {
+        char hex[41];
+        for (int k = 0; k < 20; k++)
+            sprintf(hex + k * 2, "%02x", idx->entries[i]->sha1[k]);
+        tree.entries[i] = new_entry(idx->entries[i]->path, hex);
+    }
+
+    size_t tree_sz = 0;
+    unsigned char *tree_data = serialize_tree(&tree, &tree_sz);
+
+    if (tree_data)
+    {
+        Blob tb;
+        tb.data = (char *)tree_data;
+        tb.size = tree_sz;
+        strcpy(tb.type, "tree");
+        database_store(&tb);
+        strcpy(tree_id_out, tb.id);
+        free(tree_data);
+    }
+    else
+    {
+        tree_id_out[0] = '\0';
+    }
+
+    for (size_t i = 0; i < tree.count; i++)
+        free_entry(tree.entries[i]);
+    free(tree.entries);
+    free_index(idx);
 }

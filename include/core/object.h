@@ -23,9 +23,12 @@ typedef struct {
     char id[41];
 } Blob;
 
+#include "../../include/core/index.h"
+
 void database_store(Blob *blob);
 void restore_blob(const char *path, const char *id);
 void restore_tree(const char *tree_id, const char *base_path);
 char *geg_blob_content(const char *blob_id, size_t *size_out);
+IndexEntry *store_and_index(const char *path, const char *content, size_t len);
 
 #endif

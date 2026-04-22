@@ -15,6 +15,8 @@
 
 #include "../../include/core/fs.h"
 #include "../../include/core/object.h"
+#include "../../include/core/index.h"
+#include "../../include/core/binary.h"
 #include "../../include/utils/huffman.h"
 #include "../../include/utils/sha1.h"
 
@@ -66,6 +68,39 @@ void database_store(Blob *blob)
     compress(temp_path, final_path);
     remove(temp_path);
     free(full_data);
+}
+
+
+IndexEntry *store_and_index(const char *path, const char *content, size_t len)
+{
+    Blob b;
+    b.data = (char *)content;
+    b.size = len;
+    strcpy(b.type, "blob");
+    database_store(&b);
+
+    write_file(path, content, len);
+
+    struct stat st;
+    if (stat(path, &st) != 0)
+        return NULL;
+
+    IndexEntry *ie = malloc(sizeof(IndexEntry));
+    ie->ctime_sec = (uint32_t)st.st_ctime;
+    ie->ctime_nsec = 0;
+    ie->mtime_sec = (uint32_t)st.st_mtime;
+    ie->mtime_nsec = 0;
+    ie->dev = st.st_dev;
+    ie->ino = st.st_ino;
+    ie->mode = st.st_mode;
+    ie->uid = st.st_uid;
+    ie->gid = st.st_gid;
+    ie->size = (uint32_t)len;
+    hex_to_binary(b.id, ie->sha1);
+    ie->path = strdup(path);
+    ie->flags = strlen(path) & 0xFFF;
+
+    return ie;
 }
 
 
