@@ -37,9 +37,7 @@ void geg_diff(int argc, char *argv[])
     {
         IndexEntry *entry = index->entries[i];
 
-        int should_process = 0;
-
-        int has_file_args = 0;
+        int should_process = 0, has_file_args = 0;
         for (int a = 2; a < argc; a++)
         {
             if (argv[a][0] != '-')
@@ -50,9 +48,8 @@ void geg_diff(int argc, char *argv[])
         }
 
         if (!has_file_args)
-        {
-            should_process = 1;
-        }
+        should_process = 1;
+
         else
         {
             for (int arg_idx = 2; arg_idx < argc; arg_idx++)
@@ -68,9 +65,8 @@ void geg_diff(int argc, char *argv[])
         }
 
         if (should_process == 0)
-        {
-            continue;
-        }
+        continue;
+
 
         struct stat st;
         if (stat(entry->path, &st) == 0)
@@ -78,9 +74,8 @@ void geg_diff(int argc, char *argv[])
             int modified = 0;
 
             if (entry->size != st.st_size)
-            {
-                modified = 1;
-            }
+        modified = 1;
+
             else if (entry->mtime_sec != (uint32_t)st.st_mtime)
             {
                 size_t size;
@@ -103,18 +98,16 @@ void geg_diff(int argc, char *argv[])
                     free(content);
 
                     if (memcmp(entry->sha1, hash_bin, 20) != 0)
-                    {
-                        modified = 1;
-                    }
+        modified = 1;
+
                 }
             }
 
             
 
             if (modified)
-            {
-                diff_file(entry->path, entry->sha1, syntax_mode);
-            }
+        diff_file(entry->path, entry->sha1, syntax_mode);
+
         }
     }
 

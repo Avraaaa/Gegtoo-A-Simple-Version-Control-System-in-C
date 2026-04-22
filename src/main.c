@@ -29,9 +29,8 @@ int main(int argc, char *argv[])
     if (strcmp(command, "init") == 0)
     {
         if (argc == 3)
-        {
-            geg_init(argv[2]);
-        }
+        geg_init(argv[2]);
+
         else if (argc > 3)
         {
             printf("Too many arguments for init\n");
@@ -44,15 +43,13 @@ int main(int argc, char *argv[])
         }
     }
     else if (strcmp(command, "add") == 0)
-    {
         geg_add(argc, argv);
-    }
+
     else if (strcmp(command, "commit") == 0)
     {
         if (argc == 4 && strcmp(argv[2], "-m") == 0)
-        {
-            geg_commit(argv[3]);
-        }
+        geg_commit(argv[3]);
+
         else if (argc >= 3 && strcmp(argv[2], "-m") == 0)
         {
             printf("error:switch 'm' requires a value\n");
@@ -60,9 +57,8 @@ int main(int argc, char *argv[])
         }
 
         else if (argc == 2)
-        {
-            geg_commit(NULL);
-        }
+        geg_commit(NULL);
+
         else
         {
             printf("Usage: ./geg commit [-m <message>]\n");
@@ -71,46 +67,37 @@ int main(int argc, char *argv[])
     else if (strcmp(command, "cat") == 0)
     {
         if (argc < 3)
-        {
-            printf("Usage: ./geg cat <object_id>\n");
-        }
+        printf("Usage: ./geg cat <object_id>\n");
+
         else
         {
             geg_cat(argv[2]);
         }
     }
     else if (strcmp(command, "log") == 0)
-    {
         geg_log(argc, argv);
-    }
+
     else if (strcmp(command, "checkout") == 0)
-    {
         geg_checkout(argc, argv);
-    }
+
     else if (strcmp(command, "rm") == 0 || strcmp(command, "remove") == 0)
-    {
         geg_remove(argc, argv);
-    }
+
     else if (strcmp(command, "status") == 0)
-    {
         geg_status();
-    }
+
     else if (strcmp(command, "diff") == 0)
-    {
         geg_diff(argc, argv);
-    }
+
     else if (strcmp(command, "branch") == 0)
-    {
         geg_branch(argc, argv);
-    }
+
     else if (strcmp(command, "tag") == 0)
-    {
         geg_tag(argc, argv);
-    }
+
     else if (strcmp(command, "merge") == 0)
-    {
         geg_merge(argc, argv);
-    }
+
 
     else
     {

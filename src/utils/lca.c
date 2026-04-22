@@ -215,9 +215,9 @@ static void sb_appends(StrBuf *b, const char *s) {
 static int lines_equal(char **a, int na, char **b, int nb) {
     if (na != nb) return 0;
     for (int i = 0; i < na; i++) {
-        if (strcmp(a[i], b[i]) != 0) {
-            return 0;
-        }
+        if (strcmp(a[i], b[i]) != 0)
+        return 0;
+
     }
     return 1;
 }
@@ -231,9 +231,7 @@ static MergeStatus process_chunk(
 {
     if (bn_ch == 0 && on_ch == 0 && tn_ch == 0) return MERGE_CLEAN;
 
-    int ours_same   = lines_equal(ours_ch, on_ch,  base_ch, bn_ch);
-    int theirs_same = lines_equal(their_ch, tn_ch, base_ch, bn_ch);
-    int both_same   = lines_equal(ours_ch, on_ch,  their_ch, tn_ch);
+    int ours_same   = lines_equal(ours_ch, on_ch,  base_ch, bn_ch), theirs_same = lines_equal(their_ch, tn_ch, base_ch, bn_ch), both_same   = lines_equal(ours_ch, on_ch,  their_ch, tn_ch);
 
     if (ours_same && theirs_same) {
         for (int i = 0; i < bn_ch; i++) sb_appends(out, base_ch[i]);
@@ -276,12 +274,9 @@ MergeStatus three_way_merge(
     size_t     *result_len_out)
 {
     int bn = 0, on_ = 0, tn = 0;
-    char **B = split_into_lines(base,   base_len,   &bn);
-    char **O = split_into_lines(ours,   ours_len,   &on_);
-    char **T = split_into_lines(theirs, theirs_len, &tn);
+    char **B = split_into_lines(base,   base_len,   &bn), **O = split_into_lines(ours,   ours_len,   &on_), **T = split_into_lines(theirs, theirs_len, &tn);
 
-    int *match_o = malloc((bn + 1) * sizeof(int));
-    int *match_t = malloc((bn + 1) * sizeof(int));
+    int *match_o = malloc((bn + 1) * sizeof(int)), *match_t = malloc((bn + 1) * sizeof(int));
     
     //Using myers diff
     compute_myers_match(B, bn, O, on_, match_o);
@@ -294,8 +289,7 @@ MergeStatus three_way_merge(
     for (int k = 0; k < bn; k++) {
         // If a line exists in all three, it forms a "stable anchor"
         if (match_o[k] >= 0 && match_t[k] >= 0) {
-            int next_oi = match_o[k];
-            int next_ti = match_t[k];
+            int next_oi = match_o[k], next_ti = match_t[k];
 
             MergeStatus cs = process_chunk(&out,
                 B + bi, k    - bi,

@@ -48,11 +48,8 @@ void geg_add(int argc, char *argv[])
                 // use empty string if user uses add .
 
                 if (strcmp(argv[i], ".") == 0)
+        target_path = "";
 
-                {
-
-                    target_path = "";
-                }
 
                 else
 
@@ -87,9 +84,8 @@ void geg_add(int argc, char *argv[])
     uint32_t old_count = 0;
 
     if (old_index)
-    {
         old_count = old_index->count;
-    }
+
 
     int max_files = old_count + total_new_files;
     IndexEntry **entries = malloc(sizeof(IndexEntry *) * max_files);

@@ -79,9 +79,8 @@ void geg_branch(int argc, char *argv[])
         }
 
         if (unlink(branch_path) == 0)
-        {
-            printf("Deleted branch %s\n", target_branch);
-        }
+        printf("Deleted branch %s\n", target_branch);
+
         else
         {
             printf("error: branch '%s' not found.\n", target_branch);

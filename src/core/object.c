@@ -108,9 +108,8 @@ void restore_blob(const char *path, const char *id)
 {
 
     if (strcmp(path, "geg") == 0 || strcmp(path, "./geg") == 0)
-    {
         return;
-    }
+
 
     char obj_path[PATH_MAX];
     char temp_path[PATH_MAX];
@@ -213,9 +212,8 @@ void restore_tree(const char *tree_id, const char *base_path)
             snprintf(full_path, sizeof(full_path), "%s", name);
 
         if (strcmp(mode, "100644") == 0)
-        {
-            restore_blob(full_path, hex_sha);
-        }
+        restore_blob(full_path, hex_sha);
+
         else
         {
             mkdir(full_path, 0755);
@@ -277,9 +275,8 @@ void get_commit_tree(const char *commit_id, char *tree_id_out)
     FILE *fp = fopen(temp_path, "rb");
 
     if (!fp)
-    {
         return;
-    }
+
 
     char type[10];
     size_t size;
@@ -291,9 +288,8 @@ void get_commit_tree(const char *commit_id, char *tree_id_out)
     if (fgets(line, sizeof(line), fp))
     {
         if (strncmp(line, "tree ", 5) == 0)
-        {
-            sscanf(line, "tree %40s", tree_id_out);
-        }
+        sscanf(line, "tree %40s", tree_id_out);
+
     }
 
     fclose(fp);
@@ -310,17 +306,15 @@ void read_commit_parents(const char *commit_id, char parents[2][41], int *count)
     *count = 0;
     
     if (access(obj_path, F_OK) == -1)
-    {
         return;
-    }
+
 
     decompress(obj_path, temp_path);
     FILE *fp = fopen(temp_path, "rb");
     
     if (!fp)
-    {
         return;
-    }
+
 
     char type[10];
     size_t size;
@@ -339,13 +333,11 @@ void read_commit_parents(const char *commit_id, char parents[2][41], int *count)
     while (fgets(line, sizeof(line), fp))
     {
         if (line[0] == '\n')
-        {
-            break;
-        }
+        break;
+
         if (strncmp(line, "parent ", 7) == 0 && *count < 2)
-        {
-            sscanf(line, "parent %40s", parents[(*count)++]);
-        }
+        sscanf(line, "parent %40s", parents[(*count)++]);
+
     }
     
     fclose(fp);

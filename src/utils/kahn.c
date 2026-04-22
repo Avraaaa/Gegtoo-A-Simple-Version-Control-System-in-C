@@ -120,8 +120,7 @@ void kahn_log(const CommitGraph *cg, CommitPrinter printer)
         if (indegree[i] == 0)
             heap_push(&heap, i, cg);
 
-    int lane_cap = 8;
-    int lane_count = 0;
+    int lane_cap = 8, lane_count = 0;
     int *lanes = malloc(lane_cap * sizeof(int));
 
     while (heap.count > 0)
@@ -200,9 +199,8 @@ void kahn_log(const CommitGraph *cg, CommitPrinter printer)
         }
 
         if (e->num_parents > 0 && e->parent_indices[0] >= 0)
-        {
-            lanes[my_lane] = e->parent_indices[0];
-        }
+        lanes[my_lane] = e->parent_indices[0];
+
         else
         {
             for (int l = my_lane; l < lane_count - 1; l++)

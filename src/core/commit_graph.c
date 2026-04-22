@@ -183,8 +183,7 @@ void cg_build(CommitGraph *cg)
             if (cg->entries[i].parent_indices[p] >= 0)
                 indegree[cg->entries[i].parent_indices[p]]++;
 
-    int *stack = malloc(cg->count * sizeof(int));
-    int top = 0;
+    int *stack = malloc(cg->count * sizeof(int)), top = 0;
     for (int i = 0; i < cg->count; i++)
         if (indegree[i] == 0)
             stack[top++] = i;

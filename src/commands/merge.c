@@ -135,8 +135,7 @@ void geg_merge(int argc, char *argv[])
     char **paths = collect_paths(&base_files, &our_files, &their_files, &path_count);
 
     IndexEntry **new_entries = malloc(sizeof(IndexEntry *) * path_count);
-    int new_count = 0;
-    int conflicts = 0;
+    int new_count = 0, conflicts = 0;
 
     for (int pi = 0; pi < path_count; pi++)
     {
@@ -197,18 +196,15 @@ void geg_merge(int argc, char *argv[])
                 {
                     IndexEntry *ie = store_and_index(path, content, sz);
                     if (ie)
-                    {
-                        new_entries[new_count++] = ie;
-                    }
+        new_entries[new_count++] = ie;
+
                     free(content);
                 }
             }
             else
             {
                 size_t osz = 0, tsz = 0;
-                char *oc = geg_blob_content(our_sha, &osz);
-                char *tc = geg_blob_content(their_sha, &tsz);
-                char *merged = NULL;
+                char *oc = geg_blob_content(our_sha, &osz), *tc = geg_blob_content(their_sha, &tsz), *merged = NULL;
                 size_t msz = 0;
 
                 MergeStatus ms = three_way_merge("", 0, oc, osz, tc, tsz, &merged, &msz);
@@ -242,9 +238,8 @@ void geg_merge(int argc, char *argv[])
         if (!te && oe && be)
         {
             if (memcmp(oe->sha1, be->sha1, 20) == 0)
-            {
-                remove(path);
-            }
+        remove(path);
+
             else
             {
                 printf("CONFLICT (modify/delete): %s deleted in target, modified in HEAD\n", path);
@@ -266,9 +261,8 @@ void geg_merge(int argc, char *argv[])
         if (!oe && te && be)
         {
             if (memcmp(te->sha1, be->sha1, 20) == 0)
-            {
-                remove(path);
-            }
+        remove(path);
+
             else
             {
                 printf("CONFLICT (delete/modify): %s deleted in HEAD, modified in target\n", path);
@@ -304,11 +298,7 @@ void geg_merge(int argc, char *argv[])
             }
 
             size_t bsz = 0, osz = 0, tsz = 0;
-            char *bc = geg_blob_content(base_sha, &bsz);
-            char *oc = geg_blob_content(our_sha, &osz);
-            char *tc = geg_blob_content(their_sha, &tsz);
-
-            char *merged = NULL;
+            char *bc = geg_blob_content(base_sha, &bsz), *oc = geg_blob_content(our_sha, &osz), *tc = geg_blob_content(their_sha, &tsz), *merged = NULL;
             size_t msz = 0;
             MergeStatus ms = three_way_merge(
                 bc ? bc : "", bsz,
@@ -384,8 +374,7 @@ void geg_merge(int argc, char *argv[])
     struct tm gmt_tm   = *gmtime(&now);
     gmt_tm.tm_isdst = local_tm.tm_isdst;
     long offset = (long)difftime(mktime(&local_tm), mktime(&gmt_tm));
-    char sign = (offset < 0) ? (offset = -offset, '-') : '+';
-    char time_str[32];
+    char sign = (offset < 0) ? (offset = -offset, '-') : '+', time_str[32];
     sprintf(time_str, "%ld %c%02d%02d", (long)now, sign, (int)(offset/3600), (int)((offset%3600)/60));
     
     const char *sys_user = getenv("USER");

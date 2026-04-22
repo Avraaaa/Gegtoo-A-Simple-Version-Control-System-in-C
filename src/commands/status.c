@@ -52,9 +52,8 @@ void geg_status(void)
         get_commit_tree(head_commit, tree_id);
 
         if (strlen(tree_id) > 0)
-        {
-            load_tree_entries(tree_id, "", &head_tree);
-        }
+        load_tree_entries(tree_id, "", &head_tree);
+
 
         free(head_commit);
     }
@@ -117,14 +116,12 @@ void geg_status(void)
     }
 
     if (head_tree.entries)
-    {
         free(head_tree.entries);
-    }
+
 
     if (!has_staged)
-    {
         printf("    (none)\n");
-    }
+
 
     printf("\nChanges not staged for commit:\n");
     printf("  (use \"geg add <file>...\" to update what will be committed)\n");
@@ -144,9 +141,8 @@ void geg_status(void)
                 int modified = 0;
 
                 if (entry->size != st.st_size)
-                {
-                    modified = 1;
-                }
+        modified = 1;
+
                 else if (entry->mtime_sec != (uint32_t)st.st_mtime)
                 {
                     size_t size;
@@ -170,9 +166,8 @@ void geg_status(void)
                         free(content);
 
                         if (memcmp(entry->sha1, hash_bin, 20) != 0)
-                        {
-                            modified = 1;
-                        }
+        modified = 1;
+
                     }
                 }
 
@@ -191,9 +186,8 @@ void geg_status(void)
     }
 
     if (!has_modified)
-    {
         printf("    (none)\n");
-    }
+
 
     printf("\nUntracked files:\n");
     printf("  (use \"geg add <file>...\" to include files to be committed)\n\n");
@@ -226,17 +220,14 @@ void geg_status(void)
     }
 
     if (!has_untracked)
-    {
         printf("    (none)\n");
-    }
+
 
     if (files)
-    {
         free(files);
-    }
+
 
     if (index)
-    {
         free_index(index);
-    }
+
 }

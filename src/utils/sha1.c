@@ -51,17 +51,14 @@ uint32_t helper_function(uint32_t B, uint32_t C, uint32_t D, int n)
 {
 
     if (n == 0)
-    {
         return (B & C) | ((~B) & D);
-    }
+
     else if (n == 1)
-    {
         return (B ^ C ^ D);
-    }
+
     else if (n == 2)
-    {
         return (B & C) | (B & D) | (C & D);
-    }
+
     else
     {
         return (B ^ C ^ D);
@@ -92,11 +89,7 @@ uint32_t *expand_message_block(const uint8_t *block_512bits, uint32_t W[80])
 
 void round_compression(const uint8_t *block_512bits, uint32_t *H)
 {
-    uint32_t A = H[0];
-    uint32_t B = H[1];
-    uint32_t C = H[2];
-    uint32_t D = H[3];
-    uint32_t E = H[4];
+    uint32_t A = H[0], B = H[1], C = H[2], D = H[3], E = H[4];
 
     uint32_t W[80];
     expand_message_block(block_512bits, W);
@@ -195,19 +188,6 @@ void sha1_final(Sha1Context *ctx, uint8_t *digest){
 }
 
 
-void print_hash(const uint8_t *hash){
-
-    printf("Hash: ");
-
-    for(int i = 0;i<20;i++){
-
-        printf("%02x",hash[i]);
-
-    }
-
-    printf("\n");
-
-}
 
 
 void sha1_hash(const uint8_t *data, size_t len, uint8_t *digest) {

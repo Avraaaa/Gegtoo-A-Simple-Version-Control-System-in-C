@@ -81,8 +81,7 @@ void geg_commit(const char *message)
 
     gmt_tm.tm_isdst = local_tm.tm_isdst;
 
-    time_t local_time = mktime(&local_tm);
-    time_t gmt_time = mktime(&gmt_tm);
+    time_t local_time = mktime(&local_tm), gmt_time = mktime(&gmt_tm);
 
     long offset = (long)difftime(local_time, gmt_time);
 
@@ -94,17 +93,15 @@ void geg_commit(const char *message)
         offset = -offset;
     }
 
-    int hours = offset / 3600;
-    int mins = (offset % 3600) / 60;
+    int hours = offset / 3600, mins = (offset % 3600) / 60;
 
     char time_str[32];
     sprintf(time_str, "%ld %c%02d%02d", (long)now, sign, hours, mins);
 
     const char *sys_user = getenv("USER");
     if (!sys_user)
-    {
         sys_user = "Hornet";
-    }
+
 
     char author[256];
     snprintf(author, sizeof(author), "%s <%s@local>", sys_user, sys_user);
@@ -115,9 +112,8 @@ void geg_commit(const char *message)
     int content_offset = snprintf(commit_content, commit_size, "tree %s\n", tree_id);
 
     if (parent_id)
-    {
         content_offset += snprintf(commit_content + content_offset, commit_size - content_offset, "parent %s\n", parent_id);
-    }
+
 
     content_offset += snprintf(commit_content + content_offset, commit_size - content_offset,
                                "author %s %s\n"
@@ -139,7 +135,6 @@ void geg_commit(const char *message)
 
     free(commit_content);
     if (parent_id)
-    {
         free(parent_id);
-    }
+
 }

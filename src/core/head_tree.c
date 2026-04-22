@@ -26,17 +26,15 @@ void load_tree_entries(const char *tree_id, const char *base_path, HeadTree *hea
     snprintf(temp_path, sizeof(temp_path), ".geg/temp_tree_read_%s", tree_id);
 
     if (access(obj_path, F_OK) == -1)
-    {
         return;
-    }
+
 
     decompress(obj_path, temp_path);
     FILE *fp = fopen(temp_path, "rb");
 
     if (!fp)
-    {
         return;
-    }
+
 
     char type[10];
     size_t size;
@@ -59,9 +57,8 @@ void load_tree_entries(const char *tree_id, const char *base_path, HeadTree *hea
         char hex_sha[41];
 
         if (fscanf(fp, "%s", mode) != 1)
-        {
-            break;
-        }
+        break;
+
 
         fgetc(fp);
 
@@ -76,9 +73,8 @@ void load_tree_entries(const char *tree_id, const char *base_path, HeadTree *hea
         name[i] = '\0';
 
         if (fread(bin_sha, 1, 20, fp) != 20)
-        {
-            break;
-        }
+        break;
+
 
         for (int k = 0; k < 20; k++)
         {
@@ -88,9 +84,8 @@ void load_tree_entries(const char *tree_id, const char *base_path, HeadTree *hea
         char full_path[PATH_MAX];
 
         if (base_path && strlen(base_path) > 0)
-        {
-            snprintf(full_path, sizeof(full_path), "%s/%s", base_path, name);
-        }
+        snprintf(full_path, sizeof(full_path), "%s/%s", base_path, name);
+
         else
         {
             snprintf(full_path, sizeof(full_path), "%s", name);

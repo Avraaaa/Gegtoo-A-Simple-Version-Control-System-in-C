@@ -23,21 +23,18 @@ void geg_init(const char *path)
     char resolved[PATH_MAX];
 
     if (path == NULL)
-    {
         strcpy(buffer, ".geg");
-    }
+
     else
     {
         if (realpath(path, resolved) != NULL)
-        {
-            snprintf(buffer, sizeof(buffer), "%s/.geg", resolved);
-        }
+        snprintf(buffer, sizeof(buffer), "%s/.geg", resolved);
+
         else
         {
             if (path[0] == '/')
-            {
-                snprintf(buffer, sizeof(buffer), "%s/.geg", path);
-            }
+        snprintf(buffer, sizeof(buffer), "%s/.geg", path);
+
             else
             {
                 char curr_work_dir[1024];

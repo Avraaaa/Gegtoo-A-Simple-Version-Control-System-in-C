@@ -22,9 +22,7 @@ static void push_token(char ***tokens, int *count, int *cap, const char *start, 
 char **tokenize_string(const char *text, int *count_out)
 {
     char **tokens = NULL;
-    int count = 0, cap = 0;
-    int i = 0;
-    int len = strlen(text);
+    int count = 0, cap = 0, i = 0, len = strlen(text);
 
     while (i < len)
     {

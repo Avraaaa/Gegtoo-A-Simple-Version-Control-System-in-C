@@ -84,30 +84,7 @@ int resolve_ref(const char *refname, char *hash_out)
     }
 }
 
-int get_head_ref_path(char *ref_path_out)
-{
 
-    char head_path[PATH_MAX];
-    snprintf(head_path, sizeof(head_path), ".geg/HEAD");
-
-    FILE *fp = fopen(head_path, "r");
-    if (!fp)
-        return -1;
-
-    char buffer[1024];
-
-    if (fscanf(fp, "ref: %s", buffer) != 1)
-    {
-        fclose(fp);
-        return -1;
-    }
-
-    fclose(fp);
-
-    snprintf(ref_path_out, PATH_MAX, ".geg/%s", buffer);
-
-    return 0;
-}
 
 char *get_parent_commit_id()
 {

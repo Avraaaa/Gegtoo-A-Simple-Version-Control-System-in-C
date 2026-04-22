@@ -66,8 +66,7 @@ static EditItem* calculate_myers_script(char** A, int N, char** B, int M, int *s
 
     for (d = 0; d <= max_d; d++) {
         for (k = -d; k <= d; k += 2) {
-            int down = (k == -d || (k != d && V[max_d + k - 1] < V[max_d + k + 1]));
-            int kPrev = down ? k + 1 : k - 1;
+            int down = (k == -d || (k != d && V[max_d + k - 1] < V[max_d + k + 1])), kPrev = down ? k + 1 : k - 1;
 
             if (down) x = V[max_d + kPrev];
             else      x = V[max_d + kPrev] + 1;
@@ -94,11 +93,7 @@ static EditItem* calculate_myers_script(char** A, int N, char** B, int M, int *s
         x = N; y = M;
 
         for (int cur_d = d; cur_d > 0; cur_d--) {
-            int cur_k = x - y;
-            int down = (cur_k == -cur_d || (cur_k != cur_d && trace[cur_d - 1][max_d + cur_k - 1] < trace[cur_d - 1][max_d + cur_k + 1]));
-            int kPrev = down ? cur_k + 1 : cur_k - 1;
-            int prev_x = trace[cur_d - 1][max_d + kPrev];
-            int prev_y = prev_x - kPrev;
+            int cur_k = x - y, down = (cur_k == -cur_d || (cur_k != cur_d && trace[cur_d - 1][max_d + cur_k - 1] < trace[cur_d - 1][max_d + cur_k + 1])), kPrev = down ? cur_k + 1 : cur_k - 1, prev_x = trace[cur_d - 1][max_d + kPrev], prev_y = prev_x - kPrev;
 
             while (x > prev_x && y > prev_y) { x--; y--; }
 
@@ -163,9 +158,9 @@ static void print_inline_token_diff(const char *old_line, const char *new_line) 
             if (script[i].x > script[i].prev_x) {
                 printf("\033[1;4m%s\033[22;24m", old_tokens[script[i].prev_x]);
                 cx++;
-            } else if (script[i].y > script[i].prev_y) {
-                cy++;
-            }
+            } else if (script[i].y > script[i].prev_y)
+        cy++;
+
         }
         while (cx < old_count) {
             printf("%s", old_tokens[cx]);
@@ -187,9 +182,9 @@ static void print_inline_token_diff(const char *old_line, const char *new_line) 
                 printf("%s", new_tokens[cy]);
                 cx++; cy++;
             }
-            if (script[i].x > script[i].prev_x) {
-                cx++;
-            } else if (script[i].y > script[i].prev_y) {
+            if (script[i].x > script[i].prev_x)
+        cx++;
+ else if (script[i].y > script[i].prev_y) {
                 printf("\033[1;4m%s\033[22;24m", new_tokens[script[i].prev_y]);
                 cy++;
             }
@@ -262,9 +257,9 @@ void diff_file(const char* filepath, const unsigned char* old_sha1, int syntax_m
     snprintf(obj_path, sizeof(obj_path), ".geg/objects/%.2s/%s", hex_sha1, hex_sha1 + 2);
     snprintf(temp_path, sizeof(temp_path), ".geg/temp_diff_%s", hex_sha1);
 
-    if (access(obj_path, F_OK) == -1) {
+    if (access(obj_path, F_OK) == -1)
         return;
-    }
+
 
     decompress(obj_path, temp_path);
 

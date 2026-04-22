@@ -28,8 +28,7 @@ void geg_remove(int argc, char *argv[])
         return;
     }
 
-    int cached = 0;
-    int start_idx = 2;
+    int cached = 0, start_idx = 2;
 
     if (strcmp(argv[2], "--cached") == 0)
     {
@@ -38,16 +37,14 @@ void geg_remove(int argc, char *argv[])
     }
 
     if (start_idx >= argc)
-    {
         return;
-    }
+
 
     GegIndex *index = load_index();
 
     if (!index)
-    {
         return;
-    }
+
 
     FILE *index_file = fopen(".geg/index", "wb");
 
@@ -99,9 +96,8 @@ void geg_remove(int argc, char *argv[])
         if (to_remove)
         {
             if (!cached)
-            {
-                remove(ie->path);
-            }
+        remove(ie->path);
+
             continue;
         }
 
