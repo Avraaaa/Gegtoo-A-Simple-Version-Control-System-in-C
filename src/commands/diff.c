@@ -22,6 +22,13 @@
 
 void geg_diff(int argc, char *argv[])
 {
+    int syntax_mode = 0;
+    for (int i = 2; i < argc; i++)
+    {
+        if (strcmp(argv[i], "--syntax") == 0 || strcmp(argv[i], "--word-diff") == 0)
+            syntax_mode = 1;
+    }
+
     GegIndex *index = load_index();
     if (!index)
         return;
@@ -32,15 +39,26 @@ void geg_diff(int argc, char *argv[])
 
         int should_process = 0;
 
-        if (argc < 3)
+        int has_file_args = 0;
+        for (int a = 2; a < argc; a++)
+        {
+            if (argv[a][0] != '-')
+            {
+                has_file_args = 1;
+                break;
+            }
+        }
+
+        if (!has_file_args)
         {
             should_process = 1;
         }
-
         else
         {
             for (int arg_idx = 2; arg_idx < argc; arg_idx++)
             {
+                if (argv[arg_idx][0] == '-')
+                    continue;
                 if (strcmp(entry->path, argv[arg_idx]) == 0)
                 {
                     should_process = 1;
@@ -95,7 +113,7 @@ void geg_diff(int argc, char *argv[])
 
             if (modified)
             {
-                diff_file(entry->path, entry->sha1);
+                diff_file(entry->path, entry->sha1, syntax_mode);
             }
         }
     }

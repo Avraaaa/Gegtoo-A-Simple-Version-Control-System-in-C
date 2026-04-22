@@ -20,7 +20,7 @@ typedef struct {
     int prev_x, prev_y, x, y;
 } EditItem;
 
-void diff_file(const char* filepath, const unsigned char* old_sha1);
+void diff_file(const char* filepath, const unsigned char* old_sha1, int syntax_mode);
 
 void compute_myers_match(char** A, int N, char** B, int M, int* match);
 

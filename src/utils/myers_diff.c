@@ -15,6 +15,7 @@
 
 #include "../../include/utils/huffman.h"
 #include "../../include/utils/myers_diff.h"
+#include "../../include/utils/lexer.h"
 #include "../../include/core/fs.h"
 
 static char** split_lines(char* content, size_t size, int* lines_count) {
@@ -147,7 +148,79 @@ void compute_myers_match(char** A, int N, char** B, int M, int* match) {
 
 //used by diff to produce terminal output
 
-static void print_myers_diff(char** A, int N, char** B, int M) {
+static void print_inline_token_diff(const char *old_line, const char *new_line) {
+    int old_count = 0, new_count = 0;
+    char **old_tokens = tokenize_string(old_line, &old_count);
+    char **new_tokens = tokenize_string(new_line, &new_count);
+
+    int script_len = 0;
+    EditItem *script = NULL;
+
+    if (old_count > 0 && new_count > 0)
+        script = calculate_myers_script(old_tokens, old_count, new_tokens, new_count, &script_len);
+
+    // deleted line with inline highlights
+    printf("\033[31m-");
+    if (script && script_len > 0) {
+        int cx = 0, cy = 0;
+        for (int i = script_len - 1; i >= 0; i--) {
+            while (cx < script[i].prev_x && cy < script[i].prev_y) {
+                printf("%s", old_tokens[cx]);
+                cx++; cy++;
+            }
+            if (script[i].x > script[i].prev_x) {
+                printf("\033[41m%s\033[49m", old_tokens[script[i].prev_x]);
+                cx++;
+            } else if (script[i].y > script[i].prev_y) {
+                cy++;
+            }
+        }
+        while (cx < old_count) {
+            printf("%s", old_tokens[cx]);
+            cx++;
+        }
+    } else {
+        for (int i = 0; i < old_count; i++)
+            printf("%s", old_tokens[i]);
+    }
+    printf("\033[0m");
+    if (old_count == 0 || old_tokens[old_count - 1][strlen(old_tokens[old_count - 1]) - 1] != '\n')
+        printf("\n");
+
+    // inserted line with inline highlights
+    printf("\033[32m+");
+    if (script && script_len > 0) {
+        int cx = 0, cy = 0;
+        for (int i = script_len - 1; i >= 0; i--) {
+            while (cx < script[i].prev_x && cy < script[i].prev_y) {
+                printf("%s", new_tokens[cy]);
+                cx++; cy++;
+            }
+            if (script[i].x > script[i].prev_x) {
+                cx++;
+            } else if (script[i].y > script[i].prev_y) {
+                printf("\033[42m%s\033[49m", new_tokens[script[i].prev_y]);
+                cy++;
+            }
+        }
+        while (cy < new_count) {
+            printf("%s", new_tokens[cy]);
+            cy++;
+        }
+    } else {
+        for (int i = 0; i < new_count; i++)
+            printf("%s", new_tokens[i]);
+    }
+    printf("\033[0m");
+    if (new_count == 0 || new_tokens[new_count - 1][strlen(new_tokens[new_count - 1]) - 1] != '\n')
+        printf("\n");
+
+    if (script) free(script);
+    free_tokens(old_tokens, old_count);
+    free_tokens(new_tokens, new_count);
+}
+
+static void print_myers_diff(char** A, int N, char** B, int M, int syntax_mode) {
     int script_len = 0;
     EditItem* script = calculate_myers_script(A, N, B, M, &script_len);
 
@@ -158,7 +231,16 @@ static void print_myers_diff(char** A, int N, char** B, int M) {
             if (A[cx][strlen(A[cx])-1] != '\n') printf("\n");
             cx++; cy++;
         }
-        if (script[i].x > script[i].prev_x) {
+        // substitution: a delete immediately followed by an insert
+        int is_delete = (script[i].x > script[i].prev_x);
+        int is_next_insert = (i > 0 && script[i-1].y > script[i-1].prev_y);
+
+        if (is_delete && is_next_insert && syntax_mode) {
+            print_inline_token_diff(A[script[i].prev_x], B[script[i-1].prev_y]);
+            cx++;
+            cy++;
+            i--;
+        } else if (is_delete) {
             printf("\033[31m-%s\033[0m", A[script[i].prev_x]);
             if (A[script[i].prev_x][strlen(A[script[i].prev_x])-1] != '\n') printf("\n");
             cx++;
@@ -179,7 +261,7 @@ static void print_myers_diff(char** A, int N, char** B, int M) {
 }
 
 
-void diff_file(const char* filepath, const unsigned char* old_sha1) {
+void diff_file(const char* filepath, const unsigned char* old_sha1, int syntax_mode) {
     char obj_path[PATH_MAX];
     char temp_path[PATH_MAX];
     char hex_sha1[41];
@@ -228,8 +310,7 @@ void diff_file(const char* filepath, const unsigned char* old_sha1) {
     printf("--- a/%s\n", filepath);
     printf("+++ b/%s\n", filepath);
     
-    // Call our new Consumer 2
-    print_myers_diff(old_A, old_lines_count, new_B, new_lines_count);
+    print_myers_diff(old_A, old_lines_count, new_B, new_lines_count, syntax_mode);
 
     for (int i = 0; i < old_lines_count; i++) free(old_A[i]);
     free(old_A);
