@@ -65,7 +65,7 @@ void geg_add(int argc, char *argv[])
             }
             else if (S_ISREG(st.st_mode))
             {
-                // add directory to list, since its a regular file
+                // add directory to list
                 all_files = realloc(all_files, sizeof(char *) * (total_new_files + 1));
                 all_files[total_new_files] = strdup(argv[i]);
                 total_new_files++;

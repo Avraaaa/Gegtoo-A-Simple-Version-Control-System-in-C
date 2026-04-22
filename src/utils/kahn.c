@@ -10,31 +10,13 @@
 #define ANSI_BLUE         "\033[34m"
 #define ANSI_MAGENTA      "\033[35m"
 #define ANSI_CYAN         "\033[36m"
-
-#define ANSI_BRIGHT_RED     "\033[91m"
-#define ANSI_BRIGHT_GREEN   "\033[92m"
-#define ANSI_BRIGHT_YELLOW  "\033[93m"
-#define ANSI_BRIGHT_BLUE    "\033[94m"
-#define ANSI_BRIGHT_MAGENTA "\033[95m"
-#define ANSI_BRIGHT_CYAN    "\033[96m"
-
 #define ANSI_RESET        "\033[0m"
 
 static const char *LANE_COLORS[] = {
-    ANSI_YELLOW,
-    ANSI_BRIGHT_CYAN,
-    ANSI_MAGENTA,
-    ANSI_BRIGHT_GREEN,
-    ANSI_RED,
-    ANSI_BRIGHT_BLUE,
-    ANSI_BRIGHT_YELLOW,
-    ANSI_CYAN,
-    ANSI_BRIGHT_MAGENTA,
-    ANSI_GREEN,
-    ANSI_BRIGHT_RED,
-    ANSI_BLUE
+    ANSI_RED, ANSI_GREEN, ANSI_YELLOW,
+    ANSI_BLUE, ANSI_MAGENTA, ANSI_CYAN
 };
-#define NUM_LANE_COLORS 12
+#define NUM_LANE_COLORS 6
 
 typedef struct {
     int *data;
@@ -118,6 +100,7 @@ static const char *lane_color(int lane)
     return LANE_COLORS[lane % NUM_LANE_COLORS];
 }
 
+
 void kahn_log(const CommitGraph *cg, CommitPrinter printer)
 {
     if (cg->count == 0)
@@ -186,24 +169,33 @@ void kahn_log(const CommitGraph *cg, CommitPrinter printer)
             int p1_idx = e->parent_indices[1];
             if (p1_idx >= 0)
             {
-                if (lane_count >= lane_cap)
-                {
-                    lane_cap *= 2;
-                    lanes = realloc(lanes, lane_cap * sizeof(int));
-                }
-                lanes[lane_count++] = p1_idx;
-
-                // merge fork connector
+                int existing = -1;
                 for (int l = 0; l < lane_count; l++)
+                    if (lanes[l] == p1_idx && l != my_lane)
+                    { existing = l; break; }
+
+                if (existing < 0)
                 {
-                    if (l == my_lane)
-                        printf("%s|\\%s", lane_color(l), ANSI_RESET);
-                    else if (l == lane_count - 1)
-                        break;
-                    else
-                        printf("%s|%s ", lane_color(l), ANSI_RESET);
+                    if (lane_count >= lane_cap)
+                    {
+                        lane_cap *= 2;
+                        lanes = realloc(lanes, lane_cap * sizeof(int));
+                    }
+                    lanes[lane_count++] = p1_idx;
+
+                    // merge fork connector
+                    for (int l = 0; l < lane_count; l++)
+                    {
+                        if (l == my_lane)
+                            printf("%s|%s%s\\%s ", lane_color(l), ANSI_RESET,
+                                   lane_color(lane_count - 1), ANSI_RESET);
+                        else if (l == lane_count - 1)
+                            continue;
+                        else
+                            printf("%s|%s ", lane_color(l), ANSI_RESET);
+                    }
+                    printf("\n");
                 }
-                printf("\n");
             }
         }
 
@@ -223,7 +215,7 @@ void kahn_log(const CommitGraph *cg, CommitPrinter printer)
                 for (int l = 0; l < lane_count; l++)
                 {
                     if (l == my_lane)
-                        printf("%s|/%s", lane_color(l), ANSI_RESET);
+                        printf("%s|%s/", lane_color(l), ANSI_RESET);
                     else
                         printf("%s|%s ", lane_color(l), ANSI_RESET);
                 }
@@ -244,8 +236,8 @@ void kahn_log(const CommitGraph *cg, CommitPrinter printer)
 
                     for (int c = 0; c < lane_count; c++)
                     {
-                        if (c == l)
-                            printf("%s|/%s", lane_color(c), ANSI_RESET);
+                        if (c == m - 1)
+                            printf("%s|%s/", lane_color(c), ANSI_RESET);
                         else
                             printf("%s|%s ", lane_color(c), ANSI_RESET);
                     }

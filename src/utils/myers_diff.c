@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <time.h>
+#include <ctype.h>
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -49,7 +50,6 @@ static char** split_lines(char* content, size_t size, int* lines_count) {
     return lines;
 }
 
-//Used by both diff and merge(calculates shortest edit script)
 static EditItem* calculate_myers_script(char** A, int N, char** B, int M, int *script_len_out) {
     int max_d = N + M;
     *script_len_out = 0;
@@ -117,8 +117,6 @@ static EditItem* calculate_myers_script(char** A, int N, char** B, int M, int *s
     return script;
 }
 
-
-//Used by merge
 void compute_myers_match(char** A, int N, char** B, int M, int* match) {
     for (int i = 0; i < N; i++) match[i] = -1;
 
@@ -127,17 +125,14 @@ void compute_myers_match(char** A, int N, char** B, int M, int* match) {
 
     int cx = 0, cy = 0;
     for (int i = script_len - 1; i >= 0; i--) {
-        // Lines that advanced diagonally are identical
         while (cx < script[i].prev_x && cy < script[i].prev_y) {
             match[cx] = cy; 
             cx++; cy++;
         }
-        // Handle the edit (insertion or deletion)
         if (script[i].x > script[i].prev_x) cx++;      
         else if (script[i].y > script[i].prev_y) cy++; 
     }
     
-    // Catch any remaining identical lines at the end of the file
     while (cx < N && cy < M) {
         match[cx] = cy;
         cx++; cy++;
@@ -145,8 +140,6 @@ void compute_myers_match(char** A, int N, char** B, int M, int* match) {
     
     if (script) free(script);
 }
-
-//used by diff to produce terminal output
 
 static void print_inline_token_diff(const char *old_line, const char *new_line) {
     int old_count = 0, new_count = 0;
@@ -159,7 +152,6 @@ static void print_inline_token_diff(const char *old_line, const char *new_line) 
     if (old_count > 0 && new_count > 0)
         script = calculate_myers_script(old_tokens, old_count, new_tokens, new_count, &script_len);
 
-    // deleted line with inline highlights
     printf("\033[31m-");
     if (script && script_len > 0) {
         int cx = 0, cy = 0;
@@ -169,7 +161,7 @@ static void print_inline_token_diff(const char *old_line, const char *new_line) 
                 cx++; cy++;
             }
             if (script[i].x > script[i].prev_x) {
-                printf("\033[41m%s\033[49m", old_tokens[script[i].prev_x]);
+                printf("\033[1;4m%s\033[22;24m", old_tokens[script[i].prev_x]);
                 cx++;
             } else if (script[i].y > script[i].prev_y) {
                 cy++;
@@ -187,7 +179,6 @@ static void print_inline_token_diff(const char *old_line, const char *new_line) 
     if (old_count == 0 || old_tokens[old_count - 1][strlen(old_tokens[old_count - 1]) - 1] != '\n')
         printf("\n");
 
-    // inserted line with inline highlights
     printf("\033[32m+");
     if (script && script_len > 0) {
         int cx = 0, cy = 0;
@@ -199,7 +190,7 @@ static void print_inline_token_diff(const char *old_line, const char *new_line) 
             if (script[i].x > script[i].prev_x) {
                 cx++;
             } else if (script[i].y > script[i].prev_y) {
-                printf("\033[42m%s\033[49m", new_tokens[script[i].prev_y]);
+                printf("\033[1;4m%s\033[22;24m", new_tokens[script[i].prev_y]);
                 cy++;
             }
         }
@@ -231,7 +222,6 @@ static void print_myers_diff(char** A, int N, char** B, int M, int syntax_mode) 
             if (A[cx][strlen(A[cx])-1] != '\n') printf("\n");
             cx++; cy++;
         }
-        // substitution: a delete immediately followed by an insert
         int is_delete = (script[i].x > script[i].prev_x);
         int is_next_insert = (i > 0 && script[i-1].y > script[i-1].prev_y);
 
@@ -259,7 +249,6 @@ static void print_myers_diff(char** A, int N, char** B, int M, int syntax_mode) 
     
     if (script) free(script);
 }
-
 
 void diff_file(const char* filepath, const unsigned char* old_sha1, int syntax_mode) {
     char obj_path[PATH_MAX];

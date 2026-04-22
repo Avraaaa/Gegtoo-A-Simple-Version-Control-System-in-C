@@ -17,7 +17,7 @@ static void push_token(char ***tokens, int *count, int *cap, const char *start, 
     (*tokens)[(*count)++] = tok;
 }
 
-//Tokenize when line level myers diff finds a substitution
+//Tokenizing when line leel myers diff finds a substitution
 
 char **tokenize_string(const char *text, int *count_out)
 {
