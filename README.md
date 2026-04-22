@@ -51,6 +51,16 @@ After building, the `geg` executable will be located in your `build/` directory 
 
 ./geg diff
 ./geg diff <file_path>
+./geg diff --syntax
+./geg diff <file_path> --word-diff
+
+./geg branch
+./geg branch <branch_name>
+./geg branch -d <branch_name>
+
+./geg tag
+./geg tag <tag_name>
+./geg tag -d <tag_name>
 
 ./geg checkout <commit_hash>
 ./geg checkout <branch_name>
