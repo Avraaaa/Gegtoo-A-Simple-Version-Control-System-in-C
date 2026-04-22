@@ -17,6 +17,7 @@
 #include "../../include/core/object.h"
 #include "../../include/core/refs.h"
 #include "../../include/core/tree.h"
+#include "../../include/core/head_tree.h"
 #include "../../include/utils/huffman.h"
 #include "../../include/commands.h"
 

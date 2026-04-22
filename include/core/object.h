@@ -30,5 +30,7 @@ void restore_blob(const char *path, const char *id);
 void restore_tree(const char *tree_id, const char *base_path);
 char *geg_blob_content(const char *blob_id, size_t *size_out);
 IndexEntry *store_and_index(const char *path, const char *content, size_t len);
+void get_commit_tree(const char *commit_id, char *tree_id_out);
+void read_commit_parents(const char *commit_id, char parents[2][41], int *count);
 
 #endif

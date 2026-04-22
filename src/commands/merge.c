@@ -17,6 +17,7 @@
 #include "../../include/core/refs.h"
 #include "../../include/core/object.h"
 #include "../../include/core/tree.h"
+#include "../../include/core/head_tree.h"
 #include "../../include/core/index.h"
 #include "../../include/core/binary.h"
 #include "../../include/core/fs.h"

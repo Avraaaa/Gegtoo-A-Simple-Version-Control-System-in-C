@@ -9,6 +9,7 @@
 
 #include "../../include/utils/lca.h"
 #include "../../include/core/tree.h"
+#include "../../include/core/object.h"
 #include "../../include/utils/myers_diff.h"
 
 
