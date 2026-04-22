@@ -14,6 +14,36 @@
 #endif
 
 #include "../../include/core/fs.h"
+#include <fnmatch.h>
+
+static char **ignore_patterns = NULL;
+static int ignore_count = 0;
+static int ignore_loaded = 0;
+
+static void load_ignore_patterns()
+{
+    if (ignore_loaded) return;
+    ignore_loaded = 1;
+    FILE *fp = fopen(".gegignore", "r");
+    if (!fp) return;
+    char line[256];
+    while (fgets(line, sizeof(line), fp))
+    {
+        line[strcspn(line, "\r\n")] = 0;
+        if (strlen(line) == 0 || line[0] == '#') continue;
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '/') {
+            line[len - 1] = '\0';
+        }
+        char **temp = realloc(ignore_patterns, sizeof(char *) * (ignore_count + 1));
+        if (temp)
+        {
+            ignore_patterns = temp;
+            ignore_patterns[ignore_count++] = strdup(line);
+        }
+    }
+    fclose(fp);
+}
 
 int write_file(const char *path, const char *content, size_t len)
 {
@@ -86,6 +116,15 @@ int is_ignored(const char *name)
     if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0 || strcmp(name, ".geg") == 0 || strcmp(name, ".git") == 0 || strcmp(name, "geg") == 0)  
     {
         return 1;
+    }
+
+    load_ignore_patterns();
+    for (int i = 0; i < ignore_count; i++)
+    {
+        if (fnmatch(ignore_patterns[i], name, 0) == 0)
+        {
+            return 1;
+        }
     }
 
     // if (stat(name, &path_stat) == 0 && S_ISDIR(path_stat.st_mode))
