@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
     }
     else if (strcmp(command, "log") == 0)
     {
-        geg_log();
+        geg_log(argc, argv);
     }
     else if (strcmp(command, "checkout") == 0)
     {

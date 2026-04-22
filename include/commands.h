@@ -7,7 +7,7 @@ void geg_remove(int argc, char *argv[]);
 void geg_status(void);
 void geg_commit(const char* message);
 void geg_cat(const char *id);
-void geg_log(void);
+void geg_log(int argc, char *argv[]);
 void geg_checkout(int argc, char *argv[]);
 void geg_diff(int argc, char *argv[]);
 void geg_branch(int argc, char *argv[]);
