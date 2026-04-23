@@ -46,6 +46,7 @@ After building, the `geg` executable will be located in your `build/` directory 
 ./geg commit -m "Your commit message"
 
 ./geg log
+./geg log --graph
 
 ./geg cat <hash>
 
